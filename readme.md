@@ -6,5 +6,5 @@
 4. pipenv install langchain
 5. pipenv install langchain-community
 6. pipenv install langchain-core
-7. pipenv install streamlit pypdf2 faiss-cpu sentence-transformers
+7. pipenv install streamlit pypdf2 faiss-cpu
 8. pipenv graph

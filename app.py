@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 
 HUGGINGFACE_API_TOKEN = "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"
 
-st.header("Welcome to our LBG Chatbot")
+st.header("Welcome to docs assistant bot 👋")
 with st.sidebar:
     st.title("Your Documents")
     file = st.file_uploader(
         "Upload a PDF file and start asking questions", type="pdf")
+
 
 if file is not None:
     try:
@@ -54,6 +55,7 @@ if file is not None:
                             task="text-generation",
                             model_kwargs={
                                 "temperature": 0.5,
+                                "max_length": 1000
                             },
                             huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
                         )
