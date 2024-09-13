@@ -12,7 +12,7 @@ from langchain_community.llms.huggingface_hub import HuggingFaceHub
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = "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"
+HUGGINGFACE_API_TOKEN = "hf_SkQojHETEBQqnseFmIXIwhEPvMlRICxo"
 
 st.header("Welcome to docs assistant bot 👋")
 with st.sidebar:
