@@ -11,6 +11,8 @@ streamlit = "*"
 pypdf2 = "*"
 faiss-cpu = "*"
 sentence-transformers = "*"
+transformers = "*"
+torch = "*"
 
 [dev-packages]
 
