@@ -11,7 +11,7 @@ from langchain_community.llms.huggingface_hub import HuggingFaceHub
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = "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"
+HUGGINGFACE_API_TOKEN = ""
 
 st.set_page_config(page_title="Chat with your document", page_icon="📚")
 st.header("Chat with your document 📚")
