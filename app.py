@@ -99,10 +99,7 @@ def ensure_complete_sentence(text):
 
 def extract_answer(response):
     """Extract only the AI's answer from the full response."""
-    helpful_answer_start = response.find("Helpful Answer:")
-    if helpful_answer_start != -1:
-        return response[helpful_answer_start + len("Helpful Answer:"):].strip()
-    return response.strip()
+    return response.split("Helpful Answer:").strip()
 
 
 # Chat interface
