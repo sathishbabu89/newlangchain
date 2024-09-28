@@ -4,8 +4,8 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from langchain.chains.question_answering import load_qa_chain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.llms.huggingface_hub import HuggingFaceHub
 
 
@@ -38,11 +38,11 @@ if file is not None:
                 length_function=len
             )
             chunks = text_splitter.split_text(text)
-            st.write(chunks)
             embeddings = HuggingFaceEmbeddings(
                 model_name="sentence-transformers/all-MiniLM-L6-v2")
             vector_store = FAISS.from_texts(chunks, embeddings)
             user_question = st.text_input("Type your question here")
+
             if user_question:
                 if len(user_question.strip()) == 0:
                     st.warning("Please enter a question.")
@@ -52,7 +52,7 @@ if file is not None:
                         st.warning("No relevant information found.")
                     else:
                         llm = HuggingFaceHub(
-                            repo_id="tiiuae/falcon-7b-instruct",
+                            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
                             task="text-generation",
                             model_kwargs={
                                 "temperature": 0.5,
@@ -69,3 +69,13 @@ if file is not None:
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         st.error(e)
+
+# langchain                                0.2.16
+# langchain-chroma                         0.1.4
+# langchain-community                      0.2.16
+# langchain-core                           0.3.2
+# langchain-huggingface                    0.1.0
+# langchain-text-splitters                 0.2.4
+# langcodes                                3.4.0
+# langsmith                                0.1.122
+# language_data                            1.2.0
