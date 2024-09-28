@@ -128,8 +128,6 @@ with st.sidebar:
                         st.error(str(e))
             else:
                 st.warning("Please wait for the document to finish processing before asking questions.")
-else:
-    st.info("Please upload a PDF document to start chatting.")
 
 # Display total Like and Dislike counts at the bottom
 like_count = st.session_state.feedback.count("Liked")
