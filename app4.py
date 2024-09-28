@@ -2,7 +2,6 @@ import logging
 import streamlit as st
 from PyPDF2 import PdfReader
 import pdfplumber
-from PIL import Image
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -22,6 +21,10 @@ if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
+if 'like_count' not in st.session_state:
+    st.session_state.like_count = 0
+if 'dislike_count' not in st.session_state:
+    st.session_state.dislike_count = 0
 
 # Sidebar for file upload
 with st.sidebar:
@@ -56,7 +59,6 @@ if file is not None:
                 else:
                     # Progress bar for document processing
                     st.write("Processing the document...")
-                    progress_bar = st.progress(0)
                     text_splitter = RecursiveCharacterTextSplitter(
                         separators="\n",
                         chunk_size=1000,
@@ -64,10 +66,15 @@ if file is not None:
                         length_function=len
                     )
                     chunks = text_splitter.split_text(TEXT)
-                    for i, _ in enumerate(chunks):
-                        time.sleep(0.05)  # Simulate processing time
-                        progress_bar.progress((i + 1) / len(chunks))
+                    total_chunks = len(chunks)
 
+                    # Progress tracking
+                    progress_bar = st.progress(0)
+                    for i, chunk in enumerate(chunks):
+                        time.sleep(0.1)  # Simulate processing time
+                        progress_bar.progress((i + 1) / total_chunks)
+
+                    # Vector store creation
                     embeddings = HuggingFaceEmbeddings(
                         model_name="sentence-transformers/all-MiniLM-L6-v2"
                     )
@@ -125,14 +132,19 @@ if file is not None:
                             with st.chat_message("assistant"):
                                 st.markdown(answer)
 
-                            # Adding Like/Dislike buttons
+                            # Adding Like/Dislike buttons with interactive counters
+                            st.markdown("### Did you find the answer helpful?")
                             col1, col2 = st.columns(2)
                             with col1:
                                 if st.button('👍 Like'):
-                                    st.success("You liked the answer!")
+                                    st.session_state.like_count += 1
                             with col2:
                                 if st.button('👎 Dislike'):
-                                    st.error("You disliked the answer!")
+                                    st.session_state.dislike_count += 1
+
+                            # Display like/dislike counters
+                            st.write(f"👍 Likes: {st.session_state.like_count}")
+                            st.write(f"👎 Dislikes: {st.session_state.dislike_count}")
                     except Exception as e:
                         logger.error(f"An error occurred while processing the question: {e}")
                         st.error(str(e))
