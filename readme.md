@@ -10,3 +10,10 @@
 8. pipenv graph
 9. pip freeze > requirements.txt
 10. pipenv install -r requirements.txt
+
+# Added following features in app4.py file
+
+1. Multiple PDF Uploads: You can now upload and process multiple PDF files.
+2. Document Summarization: After processing, the tool provides a brief summary of the document.
+3. Improved Question-Answer Flow: The tool allows conversation with a chat-like interface and collects user feedback on answers.
+4. Search Feature: Users can search specific keywords within the uploaded documents.
