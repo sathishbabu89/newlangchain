@@ -28,22 +28,7 @@ with st.sidebar:
     st.title("Upload Your Document")
     file = st.file_uploader("Upload a PDF file to start chatting", type="pdf")
 
-    if file is not None:
-        # Display PDF preview in sidebar for all pages
-        try:
-            with pdfplumber.open(file) as pdf:
-                st.subheader("PDF Preview")
-                for page_num, page in enumerate(pdf.pages):
-                    pdf_image = page.to_image()
-                    img = pdf_image.original
-                    st.image(img, caption=f"Page {page_num + 1}", use_column_width=True)
-        except Exception as e:
-            logger.error(f"An error occurred while previewing the PDF: {e}")
-            st.warning("Unable to display PDF preview.")
-
-# If a file is uploaded, process the document
-if file is not None:
-    if st.session_state.vector_store is None:
+    if file is not None and st.session_state.vector_store is None:
         try:
             with st.spinner("Processing document..."):
                 pdf_reader = PdfReader(file)
