@@ -78,9 +78,12 @@ if file is not None:
                         else:
                             llm = HuggingFaceEndpoint(
                                 repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                                task="text-generation",
-                                temperature=0.5,
-                                max_length=1000,
+                                max_new_tokens=512,
+                                top_k=10,
+                                top_p=0.95,
+                                typical_p=0.95,
+                                temperature=0.01,
+                                repetition_penalty=1.03,
                                 huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
                             )
                             chain = load_qa_chain(llm, chain_type="stuff")
