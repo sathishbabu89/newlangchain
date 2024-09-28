@@ -128,16 +128,16 @@ if file is not None:
 
                             # Add interactive Like/Dislike buttons and track feedback
                             col1, col2 = st.columns(2)
-                            with col1:
-                                if st.button('👍 Like', key=f"like_{len(st.session_state.feedback)}"):
-                                    st.session_state.feedback.append("Liked")
-                            with col2:
-                                if st.button('👎 Dislike', key=f"dislike_{len(st.session_state.feedback)}"):
-                                    st.session_state.feedback.append("Disliked")
-
-                            # If no feedback is given, default to 'No Feedback'
                             if len(st.session_state.feedback) == len(st.session_state.conversation_history) - 1:
-                                st.session_state.feedback.append("No Feedback")
+                                st.session_state.feedback.append(None)  # Add placeholder for this answer
+
+                            with col1:
+                                if st.button('👍 Like', key=f"like_{len(st.session_state.feedback) - 1}"):
+                                    st.session_state.feedback[-1] = "Liked"
+                            with col2:
+                                if st.button('👎 Dislike', key=f"dislike_{len(st.session_state.feedback) - 1}"):
+                                    st.session_state.feedback[-1] = "Disliked"
+
                     except Exception as e:
                         logger.error(f"An error occurred while processing the question: {e}")
                         st.error(str(e))
