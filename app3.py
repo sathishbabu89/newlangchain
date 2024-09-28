@@ -1,7 +1,8 @@
-"""Document Assistant Tool"""
 import logging
 import streamlit as st
 from PyPDF2 import PdfReader
+import pdfplumber
+from PIL import Image
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -24,16 +25,30 @@ with st.sidebar:
     st.title("Upload Your Document")
     file = st.file_uploader("Upload a PDF file to start chatting", type="pdf")
 
+    if file is not None:
+        # Display PDF preview in sidebar for all pages
+        try:
+            with pdfplumber.open(file) as pdf:
+                st.subheader("PDF Preview")
+                for page_num, page in enumerate(pdf.pages):
+                    pdf_image = page.to_image()
+                    img = pdf_image.original
+                    st.image(img, caption=f"Page {
+                             page_num + 1}", use_column_width=True)
+        except Exception as e:
+            logger.error(f"An error occurred while previewing the PDF: {e}")
+            st.warning("Unable to display PDF preview.")
+
 if file is not None:
     if st.session_state.vector_store is None:
         try:
             with st.spinner("Processing document..."):
                 pdf_reader = PdfReader(file)
-                text = ""
+                TEXT = ""
                 for page in pdf_reader.pages:
-                    text += page.extract_text() or ""
+                    TEXT += page.extract_text() or ""
 
-                if not text.strip():
+                if not TEXT.strip():
                     st.warning("No text found in the uploaded PDF.")
                 else:
                     text_splitter = RecursiveCharacterTextSplitter(
@@ -42,7 +57,7 @@ if file is not None:
                         chunk_overlap=100,
                         length_function=len
                     )
-                    chunks = text_splitter.split_text(text)
+                    chunks = text_splitter.split_text(TEXT)
                     embeddings = HuggingFaceEmbeddings(
                         model_name="sentence-transformers/all-MiniLM-L6-v2")
                     st.session_state.vector_store = FAISS.from_texts(
