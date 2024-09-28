@@ -11,7 +11,7 @@ from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = "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"
+HUGGINGFACE_API_TOKEN = ""
 
 st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
 st.header("Document Assistant Tool 📚")
