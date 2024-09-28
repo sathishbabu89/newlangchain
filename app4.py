@@ -6,7 +6,6 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
-import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,15 +15,13 @@ HUGGINGFACE_API_TOKEN = ""
 st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
 st.header("Document Assistant Tool 📚")
 
-# Initialize session state
+# Initialize session state for conversation history, vector store, and feedback tracking
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
-if 'like_count' not in st.session_state:
-    st.session_state.like_count = 0
-if 'dislike_count' not in st.session_state:
-    st.session_state.dislike_count = 0
+if 'feedback' not in st.session_state:
+    st.session_state.feedback = []  # Track feedback for each question-answer pair
 
 # Sidebar for file upload
 with st.sidebar:
@@ -57,8 +54,7 @@ if file is not None:
                 if not TEXT.strip():
                     st.warning("No text found in the uploaded PDF.")
                 else:
-                    # Progress bar for document processing
-                    st.write("Processing the document...")
+                    # Process the document and create embeddings
                     text_splitter = RecursiveCharacterTextSplitter(
                         separators="\n",
                         chunk_size=1000,
@@ -66,13 +62,6 @@ if file is not None:
                         length_function=len
                     )
                     chunks = text_splitter.split_text(TEXT)
-                    total_chunks = len(chunks)
-
-                    # Progress tracking
-                    progress_bar = st.progress(0)
-                    for i, chunk in enumerate(chunks):
-                        time.sleep(0.1)  # Simulate processing time
-                        progress_bar.progress((i + 1) / total_chunks)
 
                     # Vector store creation
                     embeddings = HuggingFaceEmbeddings(
@@ -85,9 +74,14 @@ if file is not None:
             st.error(str(e))
 
     # Display the conversation history
-    for message in st.session_state.conversation_history:
+    for idx, message in enumerate(st.session_state.conversation_history):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+
+            # Display feedback for previous answers
+            if message["role"] == "assistant" and idx < len(st.session_state.feedback):
+                feedback = st.session_state.feedback[idx]
+                st.markdown(f"**Feedback: {feedback}**")
 
     # Accept user question input
     user_question = st.chat_input("Type your question here")
@@ -132,19 +126,18 @@ if file is not None:
                             with st.chat_message("assistant"):
                                 st.markdown(answer)
 
-                            # Adding Like/Dislike buttons with interactive counters
-                            st.markdown("### Did you find the answer helpful?")
+                            # Add interactive Like/Dislike buttons and track feedback
                             col1, col2 = st.columns(2)
                             with col1:
-                                if st.button('👍 Like'):
-                                    st.session_state.like_count += 1
+                                if st.button('👍 Like', key=f"like_{len(st.session_state.feedback)}"):
+                                    st.session_state.feedback.append("Liked")
                             with col2:
-                                if st.button('👎 Dislike'):
-                                    st.session_state.dislike_count += 1
+                                if st.button('👎 Dislike', key=f"dislike_{len(st.session_state.feedback)}"):
+                                    st.session_state.feedback.append("Disliked")
 
-                            # Display like/dislike counters
-                            st.write(f"👍 Likes: {st.session_state.like_count}")
-                            st.write(f"👎 Dislikes: {st.session_state.dislike_count}")
+                            # If no feedback is given, default to 'No Feedback'
+                            if len(st.session_state.feedback) == len(st.session_state.conversation_history) - 1:
+                                st.session_state.feedback.append("No Feedback")
                     except Exception as e:
                         logger.error(f"An error occurred while processing the question: {e}")
                         st.error(str(e))
@@ -152,3 +145,10 @@ if file is not None:
                 st.warning("Please wait for the document to finish processing before asking questions.")
 else:
     st.info("Please upload a PDF document to start chatting.")
+
+# Display total Like and Dislike counts at the bottom
+like_count = st.session_state.feedback.count("Liked")
+dislike_count = st.session_state.feedback.count("Disliked")
+st.markdown(f"**Total Feedback Summary:**")
+st.write(f"👍 Likes: {like_count}")
+st.write(f"👎 Dislikes: {dislike_count}")
