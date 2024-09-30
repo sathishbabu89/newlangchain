@@ -1,8 +1,8 @@
+"""Document Assistant Tool"""
 import logging
 import streamlit as st
 from PyPDF2 import PdfReader
 import pdfplumber
-from PIL import Image
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -26,15 +26,16 @@ with st.sidebar:
     file = st.file_uploader("Upload a PDF file to start chatting", type="pdf")
 
     if file is not None:
-        # Display PDF preview in sidebar for all pages
         try:
             with pdfplumber.open(file) as pdf:
                 st.subheader("PDF Preview")
                 for page_num, page in enumerate(pdf.pages):
                     pdf_image = page.to_image()
                     img = pdf_image.original
-                    st.image(img, caption=f"Page {
-                             page_num + 1}", use_column_width=True)
+                    st.image(img,
+                             caption=f"Page {
+                                 page_num + 1}", use_column_width=True
+                             )
         except Exception as e:
             logger.error(f"An error occurred while previewing the PDF: {e}")
             st.warning("Unable to display PDF preview.")
