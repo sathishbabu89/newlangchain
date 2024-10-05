@@ -4,7 +4,6 @@ import re
 import lizard  # For code complexity analysis
 import plotly.express as px  # For pie chart
 import pandas as pd  # For DataFrames
-from pyflowchart import Flowchart  # For flowchart generation
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -70,11 +69,6 @@ if file is not None:
                     }
                     return metrics
 
-                # Generate flowcharts for functions
-                def generate_flowchart(code):
-                    flowchart = Flowchart.from_code(code)
-                    return flowchart.flowchart()  # Returns the flowchart in a textual format
-
                 # Get basic structure summary
                 code_summary = extract_summary(code_content)
 
@@ -83,10 +77,7 @@ if file is not None:
                 else:
                     # Perform code complexity analysis
                     complexity = get_code_complexity(code_content)
-
-                    # Generate flowchart
-                    flowchart = generate_flowchart(code_content)
-
+                    
                     # Use LLM to generate detailed business logic summary
                     text_splitter = RecursiveCharacterTextSplitter(
                         chunk_size=500,
@@ -137,10 +128,6 @@ if file is not None:
 
                     fig = px.pie(pie_data, values='Count', names='Type', title='Functions vs Classes')
                     st.plotly_chart(fig)
-
-                    # Display flowchart
-                    st.subheader("Code Flowchart")
-                    st.text(flowchart)  # Display flowchart as text for simplicity
 
                     # Business Logic Summary using LLM
                     st.subheader("Business Logic Summary")
