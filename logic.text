@@ -1,0 +1,104 @@
+#include <iostream>
+#include <string>
+#include <curl/curl.h>
+#include <vector>
+#include <json/json.h> // You need to install JSON library, e.g., `libjsoncpp-dev`
+
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+class InventoryItem {
+public:
+    int id;
+    std::string name;
+    int quantity;
+    double price;
+
+    InventoryItem(int id, std::string name, int quantity, double price) 
+        : id(id), name(name), quantity(quantity), price(price) {}
+
+    void updateQuantity(int qty) {
+        quantity = qty;
+    }
+};
+
+class InventoryManager {
+private:
+    std::vector<InventoryItem> items;
+
+    std::string makeAPICall(std::string url) {
+        CURL* curl;
+        CURLcode res;
+        std::string readBuffer;
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+        if(curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+            res = curl_easy_perform(curl);
+            if(res != CURLE_OK) {
+                std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            }
+            curl_easy_cleanup(curl);
+        }
+        curl_global_cleanup();
+        return readBuffer;
+    }
+
+    void parseAndLoadInventory(std::string jsonResponse) {
+        Json::Reader reader;
+        Json::Value obj;
+        reader.parse(jsonResponse, obj);
+        for (const auto& item : obj["inventory"]) {
+            items.emplace_back(item["id"].asInt(), item["name"].asString(), item["quantity"].asInt(), item["price"].asDouble());
+        }
+    }
+
+public:
+    void fetchInventoryData() {
+        std::string url = "https://api.example.com/inventory"; // Replace with your API endpoint
+        std::string jsonResponse = makeAPICall(url);
+        parseAndLoadInventory(jsonResponse);
+    }
+
+    void updateInventoryItem(int id, int qty) {
+        for (auto& item : items) {
+            if (item.id == id) {
+                item.updateQuantity(qty);
+                std::cout << "Updated item: " << item.name << " to quantity: " << qty << std::endl;
+                return;
+            }
+        }
+        std::cerr << "Item with id " << id << " not found." << std::endl;
+    }
+
+    void performInventoryBusinessLogic() {
+        // Example business logic: Check for low stock and restock if necessary
+        for (const auto& item : items) {
+            if (item.quantity < 5) {
+                std::cout << "Restocking item: " << item.name << " as quantity is low: " << item.quantity << std::endl;
+                updateInventoryItem(item.id, item.quantity + 10); // Restocking logic
+            }
+        }
+    }
+
+    void displayInventory() {
+        for (const auto& item : items) {
+            std::cout << "ID: " << item.id << ", Name: " << item.name 
+                      << ", Quantity: " << item.quantity << ", Price: $" << item.price << std::endl;
+        }
+    }
+};
+
+int main() {
+    InventoryManager manager;
+    manager.fetchInventoryData();
+    manager.displayInventory();
+    manager.performInventoryBusinessLogic();
+    manager.displayInventory();
+    return 0;
+}
