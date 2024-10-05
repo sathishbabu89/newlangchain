@@ -1,6 +1,7 @@
 import logging
 import streamlit as st
 import re
+import lizard  # For code complexity analysis
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -55,12 +56,26 @@ if file is not None:
 
                     return summary
 
+                # Perform complexity analysis using lizard
+                def get_code_complexity(code):
+                    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
+                    metrics = {
+                        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
+                        "functions": len(complexity_metrics.function_list),
+                        "lines_of_code": complexity_metrics.nloc,
+                        "average_nloc": complexity_metrics.average_nloc
+                    }
+                    return metrics
+
                 # Get basic structure summary
                 code_summary = extract_summary(code_content)
 
                 if not code_summary:
                     st.warning("No functions, classes, or critical logic found in the code.")
                 else:
+                    # Perform code complexity analysis
+                    complexity = get_code_complexity(code_content)
+                    
                     # Use LLM to generate detailed business logic summary
                     text_splitter = RecursiveCharacterTextSplitter(
                         chunk_size=500,
@@ -91,6 +106,12 @@ if file is not None:
                     st.subheader("Code Structure Summary")
                     for section in code_summary:
                         st.markdown(f"- {section}")
+
+                    st.subheader("Code Complexity Analysis")
+                    st.markdown(f"- Cyclomatic Complexity: {complexity['cyclomatic_complexity']}")
+                    st.markdown(f"- Number of Functions: {complexity['functions']}")
+                    st.markdown(f"- Lines of Code: {complexity['lines_of_code']}")
+                    st.markdown(f"- Average Lines of Code per Function: {complexity['average_nloc']}")
 
                     st.subheader("Business Logic Summary")
                     with st.spinner("Generating business logic summary..."):
