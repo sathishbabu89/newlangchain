@@ -1,67 +1,124 @@
 #include <iostream>
+#include <vector>
 #include <string>
-#include <curl/curl.h>  // API call to simulate HTTP requests
+#include <curl/curl.h>
 
-// Helper function to simulate an API call
-void makeApiCall(const std::string& url) {
-    CURL* curl;
-    CURLcode res;
+class InventoryItem {
+public:
+    std::string name;
+    int quantity;
+    double price;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-    
-    if(curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        res = curl_easy_perform(curl);
-        
-        if(res != CURLE_OK) {
-            std::cerr << "API call failed: " << curl_easy_strerror(res) << std::endl;
-        } else {
-            std::cout << "API call successful to: " << url << std::endl;
+    InventoryItem(const std::string& name, int quantity, double price)
+        : name(name), quantity(quantity), price(price) {}
+};
+
+class InventoryManager {
+private:
+    std::vector<InventoryItem> inventory;
+
+public:
+    void addItem(const InventoryItem& item) {
+        inventory.push_back(item);
+        std::cout << "Added item: " << item.name << std::endl;
+    }
+
+    void removeItem(const std::string& name) {
+        for (auto it = inventory.begin(); it != inventory.end(); ++it) {
+            if (it->name == name) {
+                inventory.erase(it);
+                std::cout << "Removed item: " << name << std::endl;
+                return;
+            }
         }
-        
-        curl_easy_cleanup(curl);
+        std::cout << "Item not found: " << name << std::endl;
     }
-    curl_global_cleanup();
-}
 
-// Function to simulate business logic: checking customer balance
-bool checkCustomerBalance(int balance, int threshold) {
-    if (balance < threshold) {
-        std::cerr << "Insufficient balance!" << std::endl;
-        return false;
-    }
-    std::cout << "Sufficient balance." << std::endl;
-    return true;
-}
-
-// Business logic: process transactions in a loop
-void processTransactions(int transactions[], int size, int balance, int threshold) {
-    for (int i = 0; i < size; ++i) {
-        std::cout << "Processing transaction " << (i + 1) << ": " << transactions[i] << std::endl;
-        
-        if (!checkCustomerBalance(balance, threshold)) {
-            std::cerr << "Transaction failed due to insufficient balance." << std::endl;
-            break;
+    void updateItemQuantity(const std::string& name, int newQuantity) {
+        for (auto& item : inventory) {
+            if (item.name == name) {
+                item.quantity = newQuantity;
+                std::cout << "Updated quantity of " << name << " to " << newQuantity << std::endl;
+                return;
+            }
         }
-        
-        balance -= transactions[i];
-        std::cout << "New balance: " << balance << std::endl;
+        std::cout << "Item not found: " << name << std::endl;
     }
-}
 
-// Main function to run the program
+    void listItems() {
+        std::cout << "Current Inventory:\n";
+        for (const auto& item : inventory) {
+            std::cout << "Name: " << item.name
+                      << ", Quantity: " << item.quantity
+                      << ", Price: $" << item.price << std::endl;
+        }
+    }
+
+    // Function to simulate API call to fetch inventory from a remote server
+    void fetchInventoryFromAPI(const std::string& apiUrl) {
+        CURL* curl;
+        CURLcode res;
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, apiUrl.c_str());
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            }
+            curl_easy_cleanup(curl);
+        }
+        curl_global_cleanup();
+    }
+
+    // Function to simulate API call to update inventory on a remote server
+    void updateInventoryOnAPI(const std::string& apiUrl, const InventoryItem& item) {
+        CURL* curl;
+        CURLcode res;
+        std::string jsonData = "{\"name\": \"" + item.name + "\", \"quantity\": " + std::to_string(item.quantity) + ", \"price\": " + std::to_string(item.price) + "}";
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, apiUrl.c_str());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, nullptr); // Add headers if needed
+            res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            }
+            curl_easy_cleanup(curl);
+        }
+        curl_global_cleanup();
+    }
+};
+
 int main() {
-    // API call example
-    std::string apiEndpoint = "https://example.com/transaction";
-    makeApiCall(apiEndpoint);
+    InventoryManager inventoryManager;
 
-    // Transaction processing
-    int transactions[] = {100, 50, 20, 200};
-    int balance = 300;
-    int threshold = 50;
+    // Add items to inventory
+    inventoryManager.addItem(InventoryItem("Widget A", 10, 2.99));
+    inventoryManager.addItem(InventoryItem("Widget B", 20, 3.99));
 
-    processTransactions(transactions, 4, balance, threshold);
+    // List current inventory
+    inventoryManager.listItems();
+
+    // Update quantity of an item
+    inventoryManager.updateItemQuantity("Widget A", 15);
+
+    // Remove an item
+    inventoryManager.removeItem("Widget B");
+
+    // List current inventory again
+    inventoryManager.listItems();
+
+    // Simulate API calls
+    std::string apiUrl = "http://example.com/api/inventory";
+    inventoryManager.fetchInventoryFromAPI(apiUrl);
+
+    // Update inventory on remote server
+    inventoryManager.updateInventoryOnAPI(apiUrl, InventoryItem("Widget A", 15, 2.99));
 
     return 0;
 }
