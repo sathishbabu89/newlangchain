@@ -1,104 +1,223 @@
 #include <iostream>
-#include <string>
-#include <curl/curl.h>
 #include <vector>
-#include <json/json.h> // You need to install JSON library, e.g., `libjsoncpp-dev`
+#include <map>
+#include <unordered_map>
+#include <string>
+#include <iomanip>
+#include <fstream>
+#include <curl/curl.h>
 
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
-
+// Inventory Item Class
 class InventoryItem {
 public:
-    int id;
-    std::string name;
+    std::string itemName;
+    std::string itemID;
     int quantity;
     double price;
 
-    InventoryItem(int id, std::string name, int quantity, double price) 
-        : id(id), name(name), quantity(quantity), price(price) {}
+    InventoryItem(const std::string& itemName, const std::string& itemID, int quantity, double price)
+        : itemName(itemName), itemID(itemID), quantity(quantity), price(price) {}
 
-    void updateQuantity(int qty) {
-        quantity = qty;
+    void displayItem() const {
+        std::cout << std::setw(10) << itemID << std::setw(20) << itemName
+                  << std::setw(10) << quantity << std::setw(10) << price << std::endl;
     }
 };
 
+// Inventory Manager Class
 class InventoryManager {
 private:
-    std::vector<InventoryItem> items;
+    std::vector<InventoryItem> inventory;
 
-    std::string makeAPICall(std::string url) {
+public:
+    void addItem(const InventoryItem& item) {
+        inventory.push_back(item);
+        std::cout << "Item " << item.itemName << " added to inventory.\n";
+    }
+
+    void removeItem(const std::string& itemID) {
+        auto it = std::find_if(inventory.begin(), inventory.end(), [&](const InventoryItem& item) {
+            return item.itemID == itemID;
+        });
+
+        if (it != inventory.end()) {
+            std::cout << "Item " << it->itemName << " removed from inventory.\n";
+            inventory.erase(it);
+        } else {
+            std::cout << "Item not found!\n";
+        }
+    }
+
+    void updateItemQuantity(const std::string& itemID, int newQuantity) {
+        auto it = std::find_if(inventory.begin(), inventory.end(), [&](const InventoryItem& item) {
+            return item.itemID == itemID;
+        });
+
+        if (it != inventory.end()) {
+            it->quantity = newQuantity;
+            std::cout << "Updated quantity for " << it->itemName << " to " << newQuantity << ".\n";
+        } else {
+            std::cout << "Item not found!\n";
+        }
+    }
+
+    void listItems() const {
+        std::cout << std::setw(10) << "Item ID" << std::setw(20) << "Item Name"
+                  << std::setw(10) << "Quantity" << std::setw(10) << "Price" << std::endl;
+        for (const auto& item : inventory) {
+            item.displayItem();
+        }
+    }
+};
+
+// Database Class
+class Database {
+private:
+    std::unordered_map<std::string, InventoryItem> db;
+
+public:
+    void saveToDatabase(const InventoryItem& item) {
+        db[item.itemID] = item;
+        std::cout << "Item " << item.itemName << " saved to database.\n";
+    }
+
+    InventoryItem loadFromDatabase(const std::string& itemID) {
+        if (db.find(itemID) != db.end()) {
+            std::cout << "Loading item " << itemID << " from database.\n";
+            return db[itemID];
+        } else {
+            throw std::runtime_error("Item not found in database!");
+        }
+    }
+
+    void saveAllToFile(const std::string& filename) {
+        std::ofstream file(filename);
+        if (file.is_open()) {
+            for (const auto& pair : db) {
+                const InventoryItem& item = pair.second;
+                file << item.itemID << " " << item.itemName << " "
+                     << item.quantity << " " << item.price << "\n";
+            }
+            file.close();
+            std::cout << "All inventory saved to file " << filename << "\n";
+        } else {
+            std::cerr << "Error opening file!\n";
+        }
+    }
+
+    void loadAllFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        if (file.is_open()) {
+            std::string itemID, itemName;
+            int quantity;
+            double price;
+            while (file >> itemID >> itemName >> quantity >> price) {
+                db[itemID] = InventoryItem(itemName, itemID, quantity, price);
+            }
+            file.close();
+            std::cout << "All inventory loaded from file " << filename << "\n";
+        } else {
+            std::cerr << "Error opening file!\n";
+        }
+    }
+};
+
+// Sales Class
+class Sales {
+private:
+    std::map<std::string, int> salesRecord;  // itemID -> quantity sold
+
+public:
+    void recordSale(const std::string& itemID, int quantity) {
+        salesRecord[itemID] += quantity;
+        std::cout << "Recorded sale: " << quantity << " of item " << itemID << "\n";
+    }
+
+    void generateSalesReport() const {
+        std::cout << "Sales Report:\n";
+        for (const auto& record : salesRecord) {
+            std::cout << "Item ID: " << record.first << ", Quantity Sold: " << record.second << "\n";
+        }
+    }
+};
+
+// Report Generator Class
+class ReportGenerator {
+public:
+    void generateInventoryReport(const InventoryManager& inventory) {
+        std::cout << "Inventory Report:\n";
+        inventory.listItems();
+    }
+
+    void generateSalesReport(const Sales& sales) {
+        sales.generateSalesReport();
+    }
+};
+
+// API Manager Class
+class APIManager {
+public:
+    static std::string fetchInventoryData(const std::string& apiUrl) {
         CURL* curl;
         CURLcode res;
-        std::string readBuffer;
+        std::string response;
 
         curl_global_init(CURL_GLOBAL_DEFAULT);
         curl = curl_easy_init();
-        if(curl) {
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, apiUrl.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
             res = curl_easy_perform(curl);
-            if(res != CURLE_OK) {
+
+            if (res != CURLE_OK) {
                 std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
             }
+
             curl_easy_cleanup(curl);
         }
+
         curl_global_cleanup();
-        return readBuffer;
+        return response;
     }
 
-    void parseAndLoadInventory(std::string jsonResponse) {
-        Json::Reader reader;
-        Json::Value obj;
-        reader.parse(jsonResponse, obj);
-        for (const auto& item : obj["inventory"]) {
-            items.emplace_back(item["id"].asInt(), item["name"].asString(), item["quantity"].asInt(), item["price"].asDouble());
-        }
-    }
-
-public:
-    void fetchInventoryData() {
-        std::string url = "https://api.example.com/inventory"; // Replace with your API endpoint
-        std::string jsonResponse = makeAPICall(url);
-        parseAndLoadInventory(jsonResponse);
-    }
-
-    void updateInventoryItem(int id, int qty) {
-        for (auto& item : items) {
-            if (item.id == id) {
-                item.updateQuantity(qty);
-                std::cout << "Updated item: " << item.name << " to quantity: " << qty << std::endl;
-                return;
-            }
-        }
-        std::cerr << "Item with id " << id << " not found." << std::endl;
-    }
-
-    void performInventoryBusinessLogic() {
-        // Example business logic: Check for low stock and restock if necessary
-        for (const auto& item : items) {
-            if (item.quantity < 5) {
-                std::cout << "Restocking item: " << item.name << " as quantity is low: " << item.quantity << std::endl;
-                updateInventoryItem(item.id, item.quantity + 10); // Restocking logic
-            }
-        }
-    }
-
-    void displayInventory() {
-        for (const auto& item : items) {
-            std::cout << "ID: " << item.id << ", Name: " << item.name 
-                      << ", Quantity: " << item.quantity << ", Price: $" << item.price << std::endl;
-        }
+private:
+    static size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+        ((std::string*)userp)->append((char*)contents, size * nmemb);
+        return size * nmemb;
     }
 };
 
+// Main Application
 int main() {
-    InventoryManager manager;
-    manager.fetchInventoryData();
-    manager.displayInventory();
-    manager.performInventoryBusinessLogic();
-    manager.displayInventory();
+    InventoryManager inventoryManager;
+    Sales salesManager;
+    ReportGenerator reportGenerator;
+    Database db;
+
+    // Add items to inventory
+    inventoryManager.addItem(InventoryItem("Laptop", "ITM001", 50, 1200.00));
+    inventoryManager.addItem(InventoryItem("Mouse", "ITM002", 150, 25.99));
+
+    // Save items to database
+    db.saveToDatabase(InventoryItem("Keyboard", "ITM003", 75, 55.50));
+    db.saveToDatabase(InventoryItem("Monitor", "ITM004", 40, 150.75));
+
+    // List all inventory
+    inventoryManager.listItems();
+
+    // Record sales
+    salesManager.recordSale("ITM001", 2);
+    salesManager.recordSale("ITM002", 5);
+
+    // Generate reports
+    reportGenerator.generateInventoryReport(inventoryManager);
+    reportGenerator.generateSalesReport(salesManager);
+
+    // Fetch and display inventory data from API
+    std::string apiUrl = "http://example.com/api/inventory";
+    std::string apiResponse = APIManager::fetchInventoryData(apiUrl);
+    std::cout << "API Response: " << apiResponse << "\n";
+
     return 0;
 }
