@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
 
-st.set_page_config(page_title="C++ Code Summarization Tool", page_icon="💻")
-st.header("C++ Code Summarization Tool with LLM 💻")
+st.set_page_config(page_title="C++ Code Analysis Tool", page_icon="💻")
+st.header("C++ Code Analysis with LLM 💻")
 
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
@@ -96,11 +96,12 @@ if file is not None:
                     with st.spinner("Generating business logic summary..."):
                         try:
                             # Ask the LLM to summarize the purpose of the code
-                            question = "Summarize the business logic and key functionality of this C++ code."
-                            response = llm.invoke({"prompt": question, "input_text": code_content})
-
-                            # Display the LLM-generated summary
-                            st.markdown(response['generated_text'])
+                            retriever = st.session_state.vector_store.similarity_search("Summarize the business logic")
+                            if retriever:
+                                response = llm.invoke({"prompt": "Summarize the business logic", "input_text": retriever[0].page_content})
+                                st.markdown(response['generated_text'])
+                            else:
+                                st.warning("No relevant information found.")
                         except Exception as e:
                             logger.error(f"An error occurred while summarizing the code: {e}")
                             st.error("Unable to generate business logic summary.")
