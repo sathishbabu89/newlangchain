@@ -37,13 +37,17 @@ if file is not None:
 
                 # Function to extract code summaries using regex (structure)
                 def extract_summary(code):
-                    # Using regex to identify function definitions, classes, etc.
-                    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
-                    functions = re.findall(function_pattern, code)
+                    # Improved regex for C++ function definitions (with potential multi-line handling)
+                    function_pattern = r'\b[a-zA-Z_][a-zA-Z_0-9]*\s*\([^)]*\)\s*{'
+                    functions = re.findall(function_pattern, code, re.MULTILINE)
 
-                    # Example: Identify class declarations
+                    # Improved regex for class declarations
                     class_pattern = r'class\s+\w+\s*{'
                     classes = re.findall(class_pattern, code)
+
+                    # Identify namespaces
+                    namespace_pattern = r'namespace\s+\w+\s*{'
+                    namespaces = re.findall(namespace_pattern, code)
 
                     summary = []
                     if functions:
@@ -52,6 +56,9 @@ if file is not None:
                     if classes:
                         summary.append("\nClasses identified in the code:")
                         summary.extend(classes)
+                    if namespaces:
+                        summary.append("\nNamespaces identified in the code:")
+                        summary.extend(namespaces)
 
                     return summary
 
@@ -76,11 +83,11 @@ if file is not None:
                     # Load the LLM for business logic summarization
                     llm = HuggingFaceEndpoint(
                         repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                        max_new_tokens=1024,  # Increased token count for more complex output
+                        max_new_tokens=512,
                         top_k=10,
                         top_p=0.95,
                         typical_p=0.95,
-                        temperature=0.7,  # Adjusted temperature for better variability
+                        temperature=0.01,
                         repetition_penalty=1.03,
                         huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
                     )
@@ -95,11 +102,12 @@ if file is not None:
                     st.subheader("Business Logic Summary")
                     with st.spinner("Generating business logic summary..."):
                         try:
-                            # Prepare more context-rich chunks to pass to the model
-                            combined_code = "\n".join(chunks[:10])  # Combine first 10 chunks for better context
-
-                            # Concatenate the code with an instruction for summarization
-                            prompt = f"Summarize the business logic and key functionality of this C++ code:\n\n{combined_code}"
+                            # Enhanced prompt for summarizing business logic
+                            prompt = f"""You are an expert code analyzer. The following C++ code snippet may contain functions, classes, and other constructs.
+                            Please provide a high-level summary of the business logic or key functionalities performed in this code, and mention any 
+                            significant design patterns, algorithms, or logic that are critical to the functionality. Here is the code: 
+                            {code_content}"""
+                            
                             response = llm.invoke(prompt)
 
                             # Assuming the response is a string, display it directly
