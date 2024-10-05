@@ -8,6 +8,7 @@ from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.llms import HuggingFaceEndpoint
+from graphviz import Source
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,40 +34,62 @@ with st.sidebar:
             logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
 
-def extract_summary(code):
-    # Using regex to identify function definitions, classes, etc.
-    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
-    functions = re.findall(function_pattern, code)
-
-    # Example: Identify class declarations
-    class_pattern = r'class\s+\w+\s*{'
-    classes = re.findall(class_pattern, code)
-
-    summary = []
-    if functions:
-        summary.append("Functions identified in the code:")
-        summary.extend(functions)
-    if classes:
-        summary.append("\nClasses identified in the code:")
-        summary.extend(classes)
-
-    return summary
-
-# Perform complexity analysis using lizard
-def get_code_complexity(code):
-    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
-    metrics = {
-        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
-        "functions": len(complexity_metrics.function_list),
-        "lines_of_code": complexity_metrics.nloc,
-        "average_nloc": complexity_metrics.average_nloc
-    }
-    return metrics
+def generate_sequence_diagram():
+    # Create a simple sequence diagram
+    diagram = """
+    sequenceDiagram
+        participant User
+        participant StreamlitApp
+        participant LLM
+        participant CodeAnalyzer
+        
+        User->>StreamlitApp: Upload C++ Code
+        StreamlitApp->>CodeAnalyzer: Analyze Code
+        CodeAnalyzer->>LLM: Generate Business Logic Summary
+        LLM-->>CodeAnalyzer: Return Summary
+        CodeAnalyzer-->>StreamlitApp: Provide Summary & Metrics
+        StreamlitApp-->>User: Display Summary & Visualizations
+    """
+    
+    # Render the sequence diagram using Graphviz
+    src = Source(diagram, format='png')
+    return src
 
 if file is not None:
     if st.session_state.vector_store is None:
         try:
             with st.spinner("Processing and summarizing code..."):
+
+                # Function to extract code summaries using regex (structure)
+                def extract_summary(code):
+                    # Using regex to identify function definitions, classes, etc.
+                    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
+                    functions = re.findall(function_pattern, code)
+
+                    # Example: Identify class declarations
+                    class_pattern = r'class\s+\w+\s*{'
+                    classes = re.findall(class_pattern, code)
+
+                    summary = []
+                    if functions:
+                        summary.append("Functions identified in the code:")
+                        summary.extend(functions)
+                    if classes:
+                        summary.append("\nClasses identified in the code:")
+                        summary.extend(classes)
+
+                    return summary
+
+                # Perform complexity analysis using lizard
+                def get_code_complexity(code):
+                    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
+                    metrics = {
+                        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
+                        "functions": len(complexity_metrics.function_list),
+                        "lines_of_code": complexity_metrics.nloc,
+                        "average_nloc": complexity_metrics.average_nloc
+                    }
+                    return metrics
 
                 # Get basic structure summary
                 code_summary = extract_summary(code_content)
@@ -142,6 +165,12 @@ if file is not None:
                         except Exception as e:
                             logger.error(f"An error occurred while summarizing the code: {e}", exc_info=True)
                             st.error("Unable to generate business logic summary.")
+                    
+                    # Generate and display the sequence diagram
+                    st.subheader("Sequence Diagram")
+                    diagram_src = generate_sequence_diagram()
+                    st.graphviz_chart(diagram_src)
+
         except Exception as e:
             logger.error(f"An error occurred while processing the code: {e}", exc_info=True)
             st.error(str(e))
