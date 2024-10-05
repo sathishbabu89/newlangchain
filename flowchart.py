@@ -4,7 +4,6 @@ import re
 import lizard  # For code complexity analysis
 import plotly.express as px  # For pie chart
 import pandas as pd  # For DataFrames
-from graphviz import Digraph  # Import graphviz for flowchart generation
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -34,50 +33,40 @@ with st.sidebar:
             logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
 
+def extract_summary(code):
+    # Using regex to identify function definitions, classes, etc.
+    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
+    functions = re.findall(function_pattern, code)
+
+    # Example: Identify class declarations
+    class_pattern = r'class\s+\w+\s*{'
+    classes = re.findall(class_pattern, code)
+
+    summary = []
+    if functions:
+        summary.append("Functions identified in the code:")
+        summary.extend(functions)
+    if classes:
+        summary.append("\nClasses identified in the code:")
+        summary.extend(classes)
+
+    return summary
+
+# Perform complexity analysis using lizard
+def get_code_complexity(code):
+    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
+    metrics = {
+        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
+        "functions": len(complexity_metrics.function_list),
+        "lines_of_code": complexity_metrics.nloc,
+        "average_nloc": complexity_metrics.average_nloc
+    }
+    return metrics
+
 if file is not None:
     if st.session_state.vector_store is None:
         try:
             with st.spinner("Processing and summarizing code..."):
-                
-                # Function to extract code summaries using regex (structure)
-                def extract_summary(code):
-                    # Using regex to identify function definitions, classes, etc.
-                    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
-                    functions = re.findall(function_pattern, code)
-
-                    # Example: Identify class declarations
-                    class_pattern = r'class\s+\w+\s*{'
-                    classes = re.findall(class_pattern, code)
-
-                    summary = []
-                    if functions:
-                        summary.append("Functions identified in the code:")
-                        summary.extend(functions)
-                    if classes:
-                        summary.append("\nClasses identified in the code:")
-                        summary.extend(classes)
-
-                    return summary
-
-                # Function to generate flowchart using graphviz
-                def generate_flowchart(code):
-                    dot = Digraph(comment='Code Flowchart')
-
-                    # Extract functions and classes
-                    functions = re.findall(r'\w+\s+\w+\s*\([^)]*\)\s*{', code)
-                    classes = re.findall(r'class\s+\w+\s*{', code)
-
-                    # Add nodes for classes and functions
-                    for cls in classes:
-                        dot.node(cls, cls)  # Add a class node
-                    for func in functions:
-                        dot.node(func, func)  # Add a function node
-                    
-                    # Add edges (you can customize this part based on your logic)
-                    for i in range(len(functions) - 1):
-                        dot.edge(functions[i], functions[i + 1])
-
-                    return dot
 
                 # Get basic structure summary
                 code_summary = extract_summary(code_content)
@@ -85,13 +74,6 @@ if file is not None:
                 if not code_summary:
                     st.warning("No functions, classes, or critical logic found in the code.")
                 else:
-                    # Generate flowchart
-                    flowchart = generate_flowchart(code_content)
-
-                    # Render flowchart as an image
-                    st.subheader("Code Flowchart")
-                    st.graphviz_chart(flowchart.source)  # Display the flowchart
-
                     # Perform code complexity analysis
                     complexity = get_code_complexity(code_content)
                     
@@ -119,6 +101,7 @@ if file is not None:
                         huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
                     )
 
+                    # Combine structural and LLM-based logic analysis
                     st.success("Code processed successfully!")
 
                     st.subheader("Code Structure Summary")
