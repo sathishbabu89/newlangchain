@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
 
-st.set_page_config(page_title="C++ Code Analysis Tool", page_icon="💻")
-st.header("C++ Code Analysis with LLM 💻")
+st.set_page_config(page_title="C++ Code Summarization Tool", page_icon="💻")
+st.header("C++ Code Summarization Tool with LLM 💻")
 
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
@@ -27,14 +27,14 @@ with st.sidebar:
             st.subheader("Code Preview")
             st.text(code_content[:5000])  # Preview the first 5000 characters of code
         except Exception as e:
-            logger.error(f"An error occurred while reading the code file: {e}")
+            logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
 
 if file is not None:
     if st.session_state.vector_store is None:
         try:
             with st.spinner("Processing and summarizing code..."):
-                
+
                 # Function to extract code summaries using regex (structure)
                 def extract_summary(code):
                     # Using regex to identify function definitions, classes, etc.
@@ -87,7 +87,7 @@ if file is not None:
 
                     # Combine structural and LLM-based logic analysis
                     st.success("Code processed successfully!")
-                    
+
                     st.subheader("Code Structure Summary")
                     for section in code_summary:
                         st.markdown(f"- {section}")
@@ -95,18 +95,21 @@ if file is not None:
                     st.subheader("Business Logic Summary")
                     with st.spinner("Generating business logic summary..."):
                         try:
-                            # Ask the LLM to summarize the purpose of the code
-                            retriever = st.session_state.vector_store.similarity_search("Summarize the business logic")
-                            if retriever:
-                                response = llm.invoke({"prompt": "Summarize the business logic", "input_text": retriever[0].page_content})
-                                st.markdown(response['generated_text'])
+                            # Concatenate the code with an instruction for summarization
+                            prompt = f"Summarize the business logic and key functionality of this C++ code:\n\n{code_content}"
+                            response = llm.invoke(prompt)
+
+                            # Safely access the generated text
+                            generated_text = response.get('generated_text', None)
+                            if generated_text:
+                                st.markdown(generated_text)
                             else:
-                                st.warning("No relevant information found.")
+                                st.warning("No generated text was returned by the LLM.")
                         except Exception as e:
-                            logger.error(f"An error occurred while summarizing the code: {e}")
+                            logger.error(f"An error occurred while summarizing the code: {e}", exc_info=True)
                             st.error("Unable to generate business logic summary.")
         except Exception as e:
-            logger.error(f"An error occurred while processing the code: {e}")
+            logger.error(f"An error occurred while processing the code: {e}", exc_info=True)
             st.error(str(e))
 
 else:
