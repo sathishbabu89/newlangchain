@@ -1,0 +1,67 @@
+#include <iostream>
+#include <string>
+#include <curl/curl.h>  // API call to simulate HTTP requests
+
+// Helper function to simulate an API call
+void makeApiCall(const std::string& url) {
+    CURL* curl;
+    CURLcode res;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    
+    if(curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        res = curl_easy_perform(curl);
+        
+        if(res != CURLE_OK) {
+            std::cerr << "API call failed: " << curl_easy_strerror(res) << std::endl;
+        } else {
+            std::cout << "API call successful to: " << url << std::endl;
+        }
+        
+        curl_easy_cleanup(curl);
+    }
+    curl_global_cleanup();
+}
+
+// Function to simulate business logic: checking customer balance
+bool checkCustomerBalance(int balance, int threshold) {
+    if (balance < threshold) {
+        std::cerr << "Insufficient balance!" << std::endl;
+        return false;
+    }
+    std::cout << "Sufficient balance." << std::endl;
+    return true;
+}
+
+// Business logic: process transactions in a loop
+void processTransactions(int transactions[], int size, int balance, int threshold) {
+    for (int i = 0; i < size; ++i) {
+        std::cout << "Processing transaction " << (i + 1) << ": " << transactions[i] << std::endl;
+        
+        if (!checkCustomerBalance(balance, threshold)) {
+            std::cerr << "Transaction failed due to insufficient balance." << std::endl;
+            break;
+        }
+        
+        balance -= transactions[i];
+        std::cout << "New balance: " << balance << std::endl;
+    }
+}
+
+// Main function to run the program
+int main() {
+    // API call example
+    std::string apiEndpoint = "https://example.com/transaction";
+    makeApiCall(apiEndpoint);
+
+    // Transaction processing
+    int transactions[] = {100, 50, 20, 200};
+    int balance = 300;
+    int threshold = 50;
+
+    processTransactions(transactions, 4, balance, threshold);
+
+    return 0;
+}
