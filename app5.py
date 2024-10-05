@@ -2,6 +2,8 @@ import logging
 import streamlit as st
 import re
 import lizard  # For code complexity analysis
+import plotly.express as px  # For pie chart
+import pandas as pd  # For DataFrames
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -107,12 +109,27 @@ if file is not None:
                     for section in code_summary:
                         st.markdown(f"- {section}")
 
+                    # Code Complexity Visualization using Bar Charts
                     st.subheader("Code Complexity Analysis")
-                    st.markdown(f"- Cyclomatic Complexity: {complexity['cyclomatic_complexity']}")
-                    st.markdown(f"- Number of Functions: {complexity['functions']}")
-                    st.markdown(f"- Lines of Code: {complexity['lines_of_code']}")
-                    st.markdown(f"- Average Lines of Code per Function: {complexity['average_nloc']}")
 
+                    complexity_df = pd.DataFrame({
+                        'Metric': ['Cyclomatic Complexity', 'Number of Functions', 'Lines of Code'],
+                        'Value': [complexity['cyclomatic_complexity'], complexity['functions'], complexity['lines_of_code']]
+                    })
+
+                    # Show Bar Chart
+                    st.bar_chart(complexity_df.set_index('Metric'))
+
+                    # Show Pie Chart for number of functions vs classes
+                    pie_data = pd.DataFrame({
+                        'Type': ['Functions', 'Classes'],
+                        'Count': [len(re.findall(r'\w+\s+\w+\s*\([^)]*\)\s*{', code_content)), len(re.findall(r'class\s+\w+\s*{', code_content))]
+                    })
+
+                    fig = px.pie(pie_data, values='Count', names='Type', title='Functions vs Classes')
+                    st.plotly_chart(fig)
+
+                    # Business Logic Summary using LLM
                     st.subheader("Business Logic Summary")
                     with st.spinner("Generating business logic summary..."):
                         try:
