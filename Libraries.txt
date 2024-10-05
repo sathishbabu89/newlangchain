@@ -1,0 +1,3 @@
+pip install graphviz pyflowchart
+pip install plotly lizard streamlit
+pip install lizard
