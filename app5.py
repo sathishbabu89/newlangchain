@@ -99,12 +99,9 @@ if file is not None:
                             prompt = f"Summarize the business logic and key functionality of this C++ code:\n\n{code_content}"
                             response = llm.invoke(prompt)
 
-                            # Safely access the generated text
-                            generated_text = response.get('generated_text', None)
-                            if generated_text:
-                                st.markdown(generated_text)
-                            else:
-                                st.warning("No generated text was returned by the LLM.")
+                            # Assuming the response is a string, display it directly
+                            st.markdown(response)
+
                         except Exception as e:
                             logger.error(f"An error occurred while summarizing the code: {e}", exc_info=True)
                             st.error("Unable to generate business logic summary.")
