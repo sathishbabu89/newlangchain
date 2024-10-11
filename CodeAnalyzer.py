@@ -1,10 +1,15 @@
 import logging
 import streamlit as st
 import re
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.llms import HuggingFaceEndpoint
+
+
+
+# Force PyTorch to use CPU
+device = torch.device("cpu")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -69,8 +74,9 @@ if file is not None:
                     chunks = text_splitter.split_text(code_content)
 
                     embeddings = HuggingFaceEmbeddings(
-                        model_name="sentence-transformers/all-MiniLM-L6-v2"
+                        model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
                     )
+
                     st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
 
                     # Load the LLM for business logic summarization
