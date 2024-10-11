@@ -1,15 +1,14 @@
 import logging
 import streamlit as st
 import re
+import torch  # Add the import for PyTorch
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.llms import HuggingFaceEndpoint
 
-
-
 # Force PyTorch to use CPU
-device = torch.device("cpu")
+device = torch.device("cpu")  # Ensure torch is imported
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
