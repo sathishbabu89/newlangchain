@@ -41,6 +41,15 @@ with st.sidebar:
             logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
 
+def calculate_maintainability_index(complexity_metrics):
+    # Calculate the Maintainability Index based on other metrics
+    avg_line_length = complexity_metrics.nloc / max(1, complexity_metrics.nloc // complexity_metrics.nloc)
+    halstead_volume = complexity_metrics.halstead.volume if complexity_metrics.halstead else 0
+    cyclomatic_complexity = complexity_metrics.average_cyclomatic_complexity
+
+    maintainability_index = 171 - 5.2 * (avg_line_length) - 0.3 * (cyclomatic_complexity) - 0.2 * (halstead_volume)
+    return max(0, min(100, maintainability_index))  # Clamping the value between 0 and 100
+
 def advanced_code_analysis(code):
     # Perform advanced code analysis using Lizard and additional metrics
     complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
@@ -49,8 +58,8 @@ def advanced_code_analysis(code):
         "functions": len(complexity_metrics.function_list),
         "lines_of_code": complexity_metrics.nloc,
         "average_nloc": complexity_metrics.average_nloc,
-        "maintainability_index": complexity_metrics.maintainability_index,
-        "halstead": complexity_metrics.halstead
+        "maintainability_index": calculate_maintainability_index(complexity_metrics),
+        "halstead": complexity_metrics.halstead  # Halstead metrics will be a complex object
     }
     return metrics
 
