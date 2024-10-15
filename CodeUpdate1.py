@@ -24,14 +24,6 @@ with st.sidebar:
     st.title("Upload Your C++ Code")
     file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
 
-    # Customization options for analysis
-    st.sidebar.subheader("Customization Options")
-    metrics_to_display = st.sidebar.multiselect(
-        "Select Metrics to Display:",
-        options=["Cyclomatic Complexity", "Maintainability Index", "Lines of Code"],
-        default=["Cyclomatic Complexity", "Maintainability Index"]
-    )
-
     if file is not None:
         try:
             code_content = file.read().decode("utf-8")
@@ -42,28 +34,38 @@ with st.sidebar:
             st.warning("Unable to display code preview.")
 
 def calculate_maintainability_index(cyclomatic_complexity, lines_of_code):
-    # Calculate the Maintainability Index based on cyclomatic complexity and lines of code
+    """
+    Calculate the maintainability index based on cyclomatic complexity and lines of code.
+    Returns a value between 0 and 100, where 100 represents the most maintainable code.
+    """
     if lines_of_code == 0:
         return 0
     avg_line_length = lines_of_code / max(1, lines_of_code)  # Avoid division by zero
     maintainability_index = 171 - 5.2 * avg_line_length - 0.3 * cyclomatic_complexity
+
+    # Debug prints
+    logger.info(f"Lines of Code: {lines_of_code}")
+    logger.info(f"Cyclomatic Complexity: {cyclomatic_complexity}")
+    logger.info(f"Average Line Length: {avg_line_length}")
+    logger.info(f"Calculated Maintainability Index (before clamping): {maintainability_index}")
+
     return max(0, min(100, maintainability_index))  # Clamping the value between 0 and 100
 
-def advanced_code_analysis(code):
-    # Perform advanced code analysis using Lizard
+def get_code_complexity(code):
+    """
+    Use lizard to analyze code complexity and return relevant metrics.
+    """
     complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
     metrics = {
         "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
         "functions": len(complexity_metrics.function_list),
         "lines_of_code": complexity_metrics.nloc,
         "average_nloc": complexity_metrics.average_nloc,
-        # Halstead metrics can be added here if calculated
+        "maintainability_index": calculate_maintainability_index(
+            complexity_metrics.average_cyclomatic_complexity,
+            complexity_metrics.nloc
+        )
     }
-    # Calculate Maintainability Index
-    metrics["maintainability_index"] = calculate_maintainability_index(
-        metrics["cyclomatic_complexity"],
-        metrics["lines_of_code"]
-    )
     return metrics
 
 if file is not None:
@@ -97,9 +99,9 @@ if file is not None:
                 if not code_summary:
                     st.warning("No functions, classes, or critical logic found in the code.")
                 else:
-                    # Perform advanced code analysis
-                    complexity = advanced_code_analysis(code_content)
-                    
+                    # Perform code complexity analysis
+                    complexity = get_code_complexity(code_content)
+
                     # Use LLM to generate detailed business logic summary
                     text_splitter = RecursiveCharacterTextSplitter(
                         chunk_size=500,
@@ -133,14 +135,14 @@ if file is not None:
 
                     # Code Complexity Visualization using Bar Charts
                     st.subheader("Code Complexity Analysis")
+
                     complexity_df = pd.DataFrame({
                         'Metric': ['Cyclomatic Complexity', 'Number of Functions', 'Lines of Code', 'Maintainability Index'],
                         'Value': [complexity['cyclomatic_complexity'], complexity['functions'], complexity['lines_of_code'], complexity['maintainability_index']]
                     })
 
-                    # Show selected metrics
-                    selected_metrics_df = complexity_df[complexity_df['Metric'].isin(metrics_to_display)]
-                    st.bar_chart(selected_metrics_df.set_index('Metric'))
+                    # Show Bar Chart
+                    st.bar_chart(complexity_df.set_index('Metric'))
 
                     # Show Pie Chart for number of functions vs classes
                     pie_data = pd.DataFrame({
@@ -172,3 +174,19 @@ if file is not None:
 
 else:
     st.info("Please upload a C++ code file to start analyzing.")
+
+# Test function to validate the Maintainability Index calculation
+def test_maintainability_index():
+    test_cases = [
+        {"lines_of_code": 10, "cyclomatic_complexity": 1},
+        {"lines_of_code": 20, "cyclomatic_complexity": 5},
+        {"lines_of_code": 100, "cyclomatic_complexity": 15},
+        {"lines_of_code": 0, "cyclomatic_complexity": 0},  # Edge case
+    ]
+    
+    for case in test_cases:
+        mi = calculate_maintainability_index(case["cyclomatic_complexity"], case["lines_of_code"])
+        logger.info(f"Test Case - Lines of Code: {case['lines_of_code']}, Cyclomatic Complexity: {case['cyclomatic_complexity']}, MI: {mi}")
+
+# Call the test function (You can run this separately or as needed)
+test_maintainability_index()
