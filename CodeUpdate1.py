@@ -24,6 +24,14 @@ with st.sidebar:
     st.title("Upload Your C++ Code")
     file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
 
+    # Customization options for analysis
+    st.sidebar.subheader("Customization Options")
+    metrics_to_display = st.sidebar.multiselect(
+        "Select Metrics to Display:",
+        options=["Cyclomatic Complexity", "Maintainability Index", "Halstead Metrics"],
+        default=["Cyclomatic Complexity", "Maintainability Index"]
+    )
+
     if file is not None:
         try:
             code_content = file.read().decode("utf-8")
@@ -32,6 +40,19 @@ with st.sidebar:
         except Exception as e:
             logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
+
+def advanced_code_analysis(code):
+    # Perform advanced code analysis using Lizard and additional metrics
+    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
+    metrics = {
+        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
+        "functions": len(complexity_metrics.function_list),
+        "lines_of_code": complexity_metrics.nloc,
+        "average_nloc": complexity_metrics.average_nloc,
+        "maintainability_index": complexity_metrics.maintainability_index,
+        "halstead": complexity_metrics.halstead
+    }
+    return metrics
 
 if file is not None:
     if st.session_state.vector_store is None:
@@ -58,25 +79,14 @@ if file is not None:
 
                     return summary
 
-                # Perform complexity analysis using lizard
-                def get_code_complexity(code):
-                    complexity_metrics = lizard.analyze_file.analyze_source_code("uploaded.cpp", code)
-                    metrics = {
-                        "cyclomatic_complexity": complexity_metrics.average_cyclomatic_complexity,
-                        "functions": len(complexity_metrics.function_list),
-                        "lines_of_code": complexity_metrics.nloc,
-                        "average_nloc": complexity_metrics.average_nloc
-                    }
-                    return metrics
-
                 # Get basic structure summary
                 code_summary = extract_summary(code_content)
 
                 if not code_summary:
                     st.warning("No functions, classes, or critical logic found in the code.")
                 else:
-                    # Perform code complexity analysis
-                    complexity = get_code_complexity(code_content)
+                    # Perform advanced code analysis
+                    complexity = advanced_code_analysis(code_content)
                     
                     # Use LLM to generate detailed business logic summary
                     text_splitter = RecursiveCharacterTextSplitter(
@@ -111,14 +121,14 @@ if file is not None:
 
                     # Code Complexity Visualization using Bar Charts
                     st.subheader("Code Complexity Analysis")
-
                     complexity_df = pd.DataFrame({
-                        'Metric': ['Cyclomatic Complexity', 'Number of Functions', 'Lines of Code'],
-                        'Value': [complexity['cyclomatic_complexity'], complexity['functions'], complexity['lines_of_code']]
+                        'Metric': ['Cyclomatic Complexity', 'Number of Functions', 'Lines of Code', 'Maintainability Index'],
+                        'Value': [complexity['cyclomatic_complexity'], complexity['functions'], complexity['lines_of_code'], complexity['maintainability_index']]
                     })
 
-                    # Show Bar Chart
-                    st.bar_chart(complexity_df.set_index('Metric'))
+                    # Show selected metrics
+                    selected_metrics_df = complexity_df[complexity_df['Metric'].isin(metrics_to_display)]
+                    st.bar_chart(selected_metrics_df.set_index('Metric'))
 
                     # Show Pie Chart for number of functions vs classes
                     pie_data = pd.DataFrame({
