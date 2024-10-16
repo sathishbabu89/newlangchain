@@ -1,3 +1,4 @@
+import hashlib  # For hashing code blocks to detect duplicates
 import logging
 import streamlit as st
 import re
@@ -88,6 +89,29 @@ def get_code_complexity(code):
     }
     return metrics
 
+# Duplicate code detection function
+def detect_duplicate_code(code):
+    """
+    Detect duplicate code blocks (functions) by hashing them and checking for duplicates.
+    Returns a list of duplicate functions.
+    """
+    function_pattern = r'(\w+\s+\w+\s*\([^)]*\)\s*{(?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*})'
+    functions = re.findall(function_pattern, code, re.DOTALL)
+
+    function_hashes = {}
+    duplicates = []
+
+    for func in functions:
+        # Hash the function code
+        func_hash = hashlib.sha256(func.encode('utf-8')).hexdigest()
+
+        if func_hash in function_hashes:
+            duplicates.append(func)
+        else:
+            function_hashes[func_hash] = func
+
+    return duplicates
+
 if file is not None:
     if st.session_state.vector_store is None:
         try:
@@ -134,6 +158,16 @@ if file is not None:
                 else:
                     # Perform code complexity analysis
                     complexity = get_code_complexity(code_content)
+
+                    # Perform Duplicate Code Detection
+                    duplicates = detect_duplicate_code(code_content)
+
+                    if duplicates:
+                        st.subheader("Duplicate Code Detected")
+                        for i, dup in enumerate(duplicates, 1):
+                            st.error(f"Duplicate #{i}:\n{dup[:300]}...")  # Showing first 300 characters for readability
+                    else:
+                        st.success("No duplicate code detected.")
 
                     # Use LLM to generate detailed business logic summary
                     text_splitter = RecursiveCharacterTextSplitter(
