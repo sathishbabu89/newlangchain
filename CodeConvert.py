@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
 
-st.set_page_config(page_title="C++ to Java Microservices Converter", page_icon="💻")
-st.header("C++ to Java Spring Boot Microservices Converter 💻")
+st.set_page_config(page_title="C++ Code Summarization and Conversion Tool", page_icon="💻")
+st.header("C++ Code Summarization and Conversion Tool with LLM 💻")
 
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
@@ -107,19 +107,20 @@ if file is not None:
                             # Assuming the response is a string, display it directly
                             st.markdown(response)
 
-                            # Now proceed to the Java Spring Boot conversion
-                            st.subheader("Java Spring Boot Microservice Code")
-                            with st.spinner("Converting to Java Spring Boot..."):
-
-                                # Call a function to perform the conversion
-                                java_code = convert_cpp_to_java_springboot(code_content)
-
-                                # Display the converted Java code
-                                st.code(java_code, language='java')
-
                         except Exception as e:
                             logger.error(f"An error occurred while summarizing the code: {e}", exc_info=True)
                             st.error("Unable to generate business logic summary.")
+
+                    # Add C++ to Java Spring Boot conversion logic
+                    st.subheader("Java Spring Boot Microservice Conversion")
+                    with st.spinner("Converting C++ code to Java Spring Boot microservices..."):
+                        java_microservice_code = convert_to_java_springboot(code_content)
+
+                        if java_microservice_code:
+                            st.code(java_microservice_code, language="java")
+                        else:
+                            st.error("Unable to generate Java Spring Boot microservice code.")
+
         except Exception as e:
             logger.error(f"An error occurred while processing the code: {e}", exc_info=True)
             st.error(str(e))
@@ -127,70 +128,34 @@ if file is not None:
 else:
     st.info("Please upload a C++ code file to start analyzing.")
 
-
-# Function to convert C++ code to Java Spring Boot microservice
-def convert_cpp_to_java_springboot(cpp_code):
+# Define the function to convert C++ code to Java Spring Boot microservices
+def convert_to_java_springboot(code_content):
     """
-    Convert C++ code into a basic Java Spring Boot microservice structure.
-    This function focuses on mapping C++ classes and functions to Java classes and REST controllers.
+    Function to convert C++ code to Java Spring Boot microservices.
+    It uses the LLM to perform the conversion.
     """
-    # Regex patterns for identifying C++ classes and functions
-    class_pattern = r'class\s+(\w+)\s*{'
-    function_pattern = r'(\w+)\s+(\w+)\s*([^)]*)\s*{'
+    try:
+        # Define the prompt for conversion
+        prompt = f"Convert the following C++ code into a Java Spring Boot microservice. Include the REST controllers, service layer, and any necessary model classes:\n\n{code_content}"
 
-    # Start building the Java Spring Boot code
-    java_code = """
-package com.example.microservice;
+        # Call the LLM to generate the Java Spring Boot code
+        llm = HuggingFaceEndpoint(
+            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+            max_new_tokens=1024,  # Adjust based on your needs
+            top_k=10,
+            top_p=0.95,
+            typical_p=0.95,
+            temperature=0.01,
+            repetition_penalty=1.03,
+            huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+        )
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.*;
+        # Send the prompt to the LLM
+        response = llm.invoke(prompt)
 
-@SpringBootApplication
-public class Application {
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
-}
-"""
+        # Return the converted Java code
+        return response
 
-    # Find all classes in the C++ code
-    classes = re.findall(class_pattern, cpp_code)
-
-    # Convert each C++ class into a Java class
-    for class_name in classes:
-        java_code += f"""
-@RestController
-@RequestMapping("/api/{class_name.lower()}")
-public class {class_name}Controller {{
-"""
-
-        # Find functions in each class and map them to Java methods
-        functions = re.findall(function_pattern, cpp_code)
-
-        for return_type, func_name, params in functions:
-            java_code += f"""
-    @GetMapping("/{func_name}")
-    public {map_type_cpp_to_java(return_type)} {func_name}() {{
-        // TODO: Implement the logic for {func_name}
-        return null;
-    }}
-"""
-        java_code += "}\n"
-
-    return java_code
-
-# Helper function to map C++ types to Java types
-def map_type_cpp_to_java(cpp_type):
-    """
-    Map basic C++ types to equivalent Java types.
-    """
-    cpp_to_java = {
-        'int': 'int',
-        'float': 'float',
-        'double': 'double',
-        'char': 'String',
-        'void': 'void',
-        # Add more type mappings as needed
-    }
-    return cpp_to_java.get(cpp_type, 'Object')  # Default to Object if type is not found
+    except Exception as e:
+        logger.error(f"Error during C++ to Java conversion: {e}", exc_info=True)
+        return None
