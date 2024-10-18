@@ -34,6 +34,38 @@ with st.sidebar:
             logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
             st.warning("Unable to display code preview.")
 
+# Define the function to convert C++ code to Java Spring Boot microservices
+def convert_to_java_springboot(code_content):
+    """
+    Function to convert C++ code to Java Spring Boot microservices.
+    It uses the LLM to perform the conversion.
+    """
+    try:
+        # Define the prompt for conversion
+        prompt = f"Convert the following C++ code into a Java Spring Boot microservice. Include the REST controllers, service layer, and any necessary model classes:\n\n{code_content}"
+
+        # Call the LLM to generate the Java Spring Boot code
+        llm = HuggingFaceEndpoint(
+            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+            max_new_tokens=1024,  # Adjust based on your needs
+            top_k=10,
+            top_p=0.95,
+            typical_p=0.95,
+            temperature=0.01,
+            repetition_penalty=1.03,
+            huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+        )
+
+        # Send the prompt to the LLM
+        response = llm.invoke(prompt)
+
+        # Return the converted Java code
+        return response
+
+    except Exception as e:
+        logger.error(f"Error during C++ to Java conversion: {e}", exc_info=True)
+        return None
+
 if file is not None:
     if st.session_state.vector_store is None:
         try:
@@ -127,35 +159,3 @@ if file is not None:
 
 else:
     st.info("Please upload a C++ code file to start analyzing.")
-
-# Define the function to convert C++ code to Java Spring Boot microservices
-def convert_to_java_springboot(code_content):
-    """
-    Function to convert C++ code to Java Spring Boot microservices.
-    It uses the LLM to perform the conversion.
-    """
-    try:
-        # Define the prompt for conversion
-        prompt = f"Convert the following C++ code into a Java Spring Boot microservice. Include the REST controllers, service layer, and any necessary model classes:\n\n{code_content}"
-
-        # Call the LLM to generate the Java Spring Boot code
-        llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-            max_new_tokens=1024,  # Adjust based on your needs
-            top_k=10,
-            top_p=0.95,
-            typical_p=0.95,
-            temperature=0.01,
-            repetition_penalty=1.03,
-            huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-        )
-
-        # Send the prompt to the LLM
-        response = llm.invoke(prompt)
-
-        # Return the converted Java code
-        return response
-
-    except Exception as e:
-        logger.error(f"Error during C++ to Java conversion: {e}", exc_info=True)
-        return None
