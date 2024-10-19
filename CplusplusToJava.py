@@ -21,15 +21,16 @@ def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code using the Incoder model."""
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code:\n"
+        "Convert the following C++ code to Java code, including any API calls:\n"
         f"{cpp_code}\n"
+        "Please ensure that the Java code is functional and mirrors the functionality of the C++ code:\n"
         "Java code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500  # Set the number of tokens to generate
+        max_new_tokens=500  # Keep this high for detailed output
     )
     
     # Decode the output and filter unwanted parts
