@@ -48,31 +48,31 @@ def convert_java_to_springboot(java_code):
 
 def main():
     """Main function to run the Streamlit app."""
+    st.set_page_config(page_title="Code Conversion Tool", page_icon="✏️", layout="wide")
+    
     st.title("Code Conversion Tool")
+    st.markdown("""
+        This tool helps you convert C++ code to Java and then to Spring Boot microservices.
+        Upload your C++ code below, and follow the steps to perform the conversions.
+    """)
 
-    col1, col2, col3 = st.columns(3)
+    uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
 
-    with col1:
-        st.header("Upload C++ Code")
-        uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
-        
-        if uploaded_file is not None:
-            cpp_code = read_cpp_file(uploaded_file)
-            st.subheader("Uploaded C++ Code:")
-            st.code(cpp_code, language='cpp')
+    if uploaded_file is not None:
+        cpp_code = read_cpp_file(uploaded_file)
+        st.subheader("Uploaded C++ Code:")
+        st.code(cpp_code, language='cpp')
 
-            # Convert C++ to Java
-            if st.button("Convert C++ to Java"):
-                try:
-                    java_code = convert_cpp_to_java(cpp_code)
-                    st.session_state.java_code = java_code  # Store Java code in session state
-                    st.subheader("Generated Java Code:")
-                    st.code(java_code, language='java')
-                except Exception as e:
-                    st.error(f"Error during conversion: {e}")
+        # Convert C++ to Java
+        if st.button("Convert C++ to Java"):
+            try:
+                java_code = convert_cpp_to_java(cpp_code)
+                st.session_state.java_code = java_code  # Store Java code in session state
+                st.subheader("Generated Java Code:")
+                st.code(java_code, language='java')
+            except Exception as e:
+                st.error(f"Error during C++ to Java conversion: {e}")
 
-    with col2:
-        st.header("Convert Java Code to Spring Boot")
         if 'java_code' in st.session_state:
             java_code = st.session_state.java_code
             st.subheader("Java Code Ready for Conversion:")
@@ -84,9 +84,14 @@ def main():
                     st.subheader("Generated Spring Boot Code:")
                     st.code(springboot_code, language='java')
                 except Exception as e:
-                    st.error(f"Error during conversion: {e}")
+                    st.error(f"Error during Java to Spring Boot conversion: {e}")
         else:
-            st.warning("Please upload C++ code and convert it to Java first.")
+            st.warning("Please convert C++ code to Java first.")
+
+    st.markdown("""
+        ---
+        *Developed with ❤️ by Your Name*
+    """)
 
 if __name__ == "__main__":
     main()
