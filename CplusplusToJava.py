@@ -1,25 +1,17 @@
 import streamlit as st
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
 from transformers import pipeline, AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
-# Load the tokenizer for the model
-tokenizer = AutoTokenizer.from_pretrained("Salesforce/codet5-base")
+# Load the tokenizer and code generation model
+tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-6B")
 
-# Load the embedding model and code generation model
 @st.cache_resource
 def load_embedding_model():
     return SentenceTransformer('microsoft/codebert-base')
 
 @st.cache_resource
 def load_codegen_model():
-    return pipeline("text2text-generation", model="Salesforce/codet5-base")
-
-# Initialize FAISS Index (if needed for future retrieval-augmented generation)
-@st.cache_resource
-def initialize_faiss_index(embedding_model):
-    return FAISS(embedding_model)
+    return pipeline("text2text-generation", model="facebook/incoder-6B")
 
 # Read the uploaded C++ file content
 def read_cpp_file(uploaded_file):
@@ -31,17 +23,22 @@ def chunk_input(input_text, chunk_size=300):
     for i in range(0, len(tokens), chunk_size):
         yield ' '.join(tokens[i:i + chunk_size])
 
+# Function to check if Java code is valid
+def is_valid_java_code(java_code):
+    return "class" in java_code and "void" in java_code and "{" in java_code and "}" in java_code
+
 # Step 1: Convert C++ code to plain Java code
 def convert_cpp_to_plain_java(cpp_code, codegen_model):
     all_java_code = []
     for chunk in chunk_input(cpp_code):
-        # Check the token length
-        tokenized_chunk = tokenizer(chunk, return_tensors='pt', truncation=True, max_length=512, padding="max_length")
-        if tokenized_chunk['input_ids'].size(1) > 512:
-            st.error("Chunk exceeds the token limit after tokenization.")
-            continue
-
-        prompt = f"Convert the following valid C++ code into equivalent Java code:\n\n{chunk}"
+        prompt = (
+            "You are a programming assistant. "
+            "Your task is to convert valid C++ code into equivalent Java code. "
+            "Make sure to maintain correct syntax and semantics. "
+            "Here is the C++ code:\n\n"
+            f"{chunk}\n\n"
+            "Please provide the corresponding Java code."
+        )
         response = codegen_model(prompt)
         if not response or 'generated_text' not in response[0]:
             return "Error: Model output was not as expected."
@@ -61,8 +58,12 @@ def convert_java_to_spring_boot(java_code, codegen_model):
             continue
 
         prompt = (
-            f"Refactor the following valid Java code into a Spring Boot microservice. "
-            f"Ensure it includes proper annotations, controllers, services, and repository layers:\n\n{chunk}"
+            "You are a programming assistant. "
+            "Your task is to refactor valid Java code into a Spring Boot microservice. "
+            "Make sure it includes proper annotations, controllers, services, and repository layers. "
+            "Here is the Java code:\n\n"
+            f"{chunk}\n\n"
+            "Please provide the corresponding Spring Boot microservice code."
         )
         response = codegen_model(prompt)
         if not response or 'generated_text' not in response[0]:
@@ -95,6 +96,9 @@ def main():
 
                 # Step 1: Convert C++ to Java
                 java_code = convert_cpp_to_plain_java(cpp_code, codegen_model)
+                if not is_valid_java_code(java_code):
+                    st.error("Generated Java code is invalid.")
+                    return
                 st.subheader("Step 1: Generated Plain Java Code:")
                 st.code(java_code, language='java')
 
