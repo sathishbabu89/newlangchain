@@ -1,23 +1,26 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# Load a suitable model
-tokenizer = AutoTokenizer.from_pretrained("Salesforce/codegen2-1B_P")
-model = AutoModelForCausalLM.from_pretrained("Salesforce/codegen2-1B_P")
+# Load the model and tokenizer
+tokenizer = AutoTokenizer.from_pretrained("Salesforce/codegen-2-1B-P")
+model = AutoModelForCausalLM.from_pretrained("Salesforce/codegen-2-1B-P")
 
 def read_cpp_file(uploaded_file):
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
     prompt = (
-        "Convert the following C++ code to Java code:\n"
-        f"{cpp_code}\n\n"
-        "Please provide the Java code."
+        "Convert the following C++ code to Java:\n"
+        f"{cpp_code}\n"
+        "Java code:"
     )
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output_sequences = model.generate(**inputs, max_new_tokens=300)  # Limit output length
+    
+    # Limit the output to prevent excessive responses
+    output_sequences = model.generate(**inputs, max_new_tokens=300)
+    
     java_code = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-    return java_code
+    return java_code.strip()  # Clean up the response
 
 def main():
     st.title("C++ to Java Converter")
@@ -32,7 +35,7 @@ def main():
         if st.button("Convert to Java"):
             try:
                 java_code = convert_cpp_to_java(cpp_code)
-                if not java_code.strip():
+                if not java_code or "Java code:" in java_code:
                     st.error("Generated Java code is empty or invalid.")
                     return
                 st.subheader("Generated Java Code:")
