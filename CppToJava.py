@@ -1,5 +1,10 @@
 import streamlit as st
-import re  # Import regular expressions
+import re
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# Load the LLM model
+llm_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+llm_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
@@ -8,7 +13,7 @@ def read_cpp_file(uploaded_file):
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to a high-level Java representation."""
     
-    # Initialize imports and keep track of which ones to include
+    # Initialize imports and track which ones to include
     imports = set()
     
     # Handle includes and translate to Java imports
@@ -40,26 +45,28 @@ def convert_cpp_to_java(cpp_code):
     # Convert constructors
     java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
 
-    # Fix System.out.println statements
-    java_code = re.sub(r'System.out.println\s*\+\s*(.*?);', r'System.out.println(\1);', java_code)
-    
-    # Abstract CURL handling
-    java_code = java_code.replace("CURL", "HttpURLConnection")  # Placeholder for CURL
-    java_code = java_code.replace("curl_easy_setopt", "// TODO: Set HTTP request options")
-    java_code = java_code.replace("curl_easy_perform", "// TODO: Perform the HTTP request")
-    
-    # Abstract JSON handling
-    java_code = java_code.replace("Json::Value", "JsonObject")  # Placeholder for JSON handling
-    java_code = java_code.replace("Json::Reader", "// TODO: Initialize JSON reader")
-    
-    # General comments for user to complete the code
-    java_code += "\n// TODO: Implement the logic for HTTP requests and JSON parsing based on the C++ code structure."
-    
-    # Add imports to the beginning of the java_code
-    if imports:
-        java_code = "\n".join(imports) + "\n" + java_code
+    # Return the basic Java code
+    return java_code, imports
 
-    return java_code
+def refine_java_code(java_code):
+    """Use LLM to refine the generated Java code."""
+    prompt = (
+        "Please correct and improve the following Java code:\n"
+        f"{java_code}\n"
+        "Corrected Java code:"
+    )
+
+    inputs = llm_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+
+    output_sequences = llm_model.generate(
+        inputs['input_ids'],
+        attention_mask=inputs['attention_mask'],
+        max_new_tokens=500
+    )
+
+    refined_java_code = llm_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+
+    return refined_java_code
 
 def main():
     """Main function to run the Streamlit app."""
@@ -75,9 +82,17 @@ def main():
         # Convert C++ to Java
         if st.button("Convert C++ to Java"):
             try:
-                java_code = convert_cpp_to_java(cpp_code)
+                java_code, imports = convert_cpp_to_java(cpp_code)
+                
+                # Add imports to the beginning of the java_code
+                if imports:
+                    java_code = "\n".join(imports) + "\n" + java_code
+                
+                # Refine the generated Java code using LLM
+                refined_java_code = refine_java_code(java_code)
+
                 st.subheader("Generated Java Code:")
-                st.code(java_code, language='java')
+                st.code(refined_java_code, language='java')
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
