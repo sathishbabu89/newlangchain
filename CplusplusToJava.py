@@ -30,7 +30,13 @@ def convert_cpp_to_java(cpp_code):
         attention_mask=inputs['attention_mask'], 
         max_new_tokens=200  # Set the number of tokens to generate
     )
+    
+    # Decode the output and filter unwanted parts
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+
+    # Clean the output by splitting and taking relevant parts
+    if "Java code:" in java_code:
+        java_code = java_code.split("Java code:")[-1].strip()
     return java_code
 
 def main():
