@@ -2,8 +2,10 @@ import streamlit as st
 import re
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# Load the LLM model
+# Load the LLM model and set padding token
 llm_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+if llm_tokenizer.pad_token is None:
+    llm_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 llm_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 def read_cpp_file(uploaded_file):
