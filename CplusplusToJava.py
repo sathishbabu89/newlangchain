@@ -6,9 +6,13 @@ from sentence_transformers import SentenceTransformer
 tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
 model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
-# Add a padding token if it doesn't exist
+# Check and add a padding token if it doesn't exist
 if tokenizer.pad_token is None:
-    tokenizer.pad_token = tokenizer.eos_token  # Use the end-of-sequence token as the padding token
+    # Add a new padding token if it is not already defined
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Add '[PAD]' as the padding token
+
+# Display the padding token for confirmation
+st.write(f"Padding token: '{tokenizer.pad_token}'")  # Display the padding token used
 
 @st.cache_resource
 def load_embedding_model():
@@ -36,7 +40,7 @@ def convert_cpp_to_plain_java(cpp_code):
             f"{chunk}\n\n"
             "Please provide the corresponding Java code."
         )
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="max_length")
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="longest")
         output_sequences = model.generate(**inputs, max_new_tokens=1000)
         java_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_java_code.append(java_chunk)
@@ -47,12 +51,6 @@ def convert_cpp_to_plain_java(cpp_code):
 def convert_java_to_spring_boot(java_code):
     all_spring_boot_code = []
     for chunk in chunk_input(java_code):
-        # Check the token length
-        tokenized_chunk = tokenizer(chunk, return_tensors='pt', truncation=True, max_length=512, padding="max_length")
-        if tokenized_chunk['input_ids'].size(1) > 512:
-            st.error("Chunk exceeds the token limit after tokenization.")
-            continue
-
         prompt = (
             "You are a programming assistant. "
             "Refactor the following valid Java code into a Spring Boot microservice. "
@@ -61,7 +59,7 @@ def convert_java_to_spring_boot(java_code):
             f"{chunk}\n\n"
             "Please provide the corresponding Spring Boot microservice code."
         )
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="max_length")
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="longest")
         output_sequences = model.generate(**inputs, max_new_tokens=1000)
         spring_boot_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_spring_boot_code.append(spring_boot_chunk)
