@@ -19,9 +19,9 @@ def read_cpp_file(uploaded_file):
 
 def extract_functions(cpp_code):
     """Extract functions from the C++ code."""
-    # This regex is a simple way to capture function definitions.
     func_pattern = r'([a-zA-Z_][a-zA-Z0-9_]*\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(.*?\)\s*{.*?}'
-    return re.findall(func_pattern, cpp_code, re.DOTALL)
+    functions = re.findall(func_pattern, cpp_code, re.DOTALL)
+    return functions
 
 def convert_cpp_chunk(chunk):
     """Convert a chunk of C++ code to Java code."""
@@ -35,7 +35,7 @@ def convert_cpp_chunk(chunk):
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500  # Keep this high for detailed output
+        max_new_tokens=500
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
@@ -46,7 +46,12 @@ def convert_cpp_to_java(cpp_code):
     functions = extract_functions(cpp_code)
     java_code = ""
     
+    if not functions:
+        st.warning("No valid functions found in the C++ code.")
+        return java_code
+    
     for function in functions:
+        st.write(f"Converting function: {function}")  # Log the function being converted
         java_code += convert_cpp_chunk(function) + "\n\n"  # Convert each function and append
     
     return java_code.strip()
@@ -66,12 +71,13 @@ def main():
         if st.button("Convert C++ to Java"):
             try:
                 java_code = convert_cpp_to_java(cpp_code)
-                st.subheader("Generated Java Code:")
-                st.code(java_code, language='java')
+                if java_code:  # Only display if conversion was successful
+                    st.subheader("Generated Java Code:")
+                    st.code(java_code, language='java')
 
-                # Use CodeBERT for semantic understanding (optional)
-                java_embeddings = codebert_model.encode(java_code)
-                st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
+                    # Use CodeBERT for semantic understanding (optional)
+                    java_embeddings = codebert_model.encode(java_code)
+                    st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
