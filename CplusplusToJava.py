@@ -1,9 +1,11 @@
 import streamlit as st
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 from sentence_transformers import SentenceTransformer
-import os
+
+# Load the tokenizer for the model
+tokenizer = AutoTokenizer.from_pretrained("Salesforce/codet5-base")
 
 # Load the embedding model and code generation model
 @st.cache_resource
@@ -24,7 +26,7 @@ def read_cpp_file(uploaded_file):
     return uploaded_file.read().decode("utf-8")
 
 # Function to chunk input text
-def chunk_input(input_text, chunk_size=512):
+def chunk_input(input_text, chunk_size=300):
     tokens = input_text.split()
     for i in range(0, len(tokens), chunk_size):
         yield ' '.join(tokens[i:i + chunk_size])
@@ -33,30 +35,41 @@ def chunk_input(input_text, chunk_size=512):
 def convert_cpp_to_plain_java(cpp_code, codegen_model):
     all_java_code = []
     for chunk in chunk_input(cpp_code):
-        prompt = f"Convert the following C++ code into equivalent Java code:\n\n{chunk}"
+        # Check the token length
+        tokenized_chunk = tokenizer(chunk, return_tensors='pt', truncation=True, max_length=512, padding="max_length")
+        if tokenized_chunk['input_ids'].size(1) > 512:
+            st.error("Chunk exceeds the token limit after tokenization.")
+            continue
+
+        prompt = f"Convert the following valid C++ code into equivalent Java code:\n\n{chunk}"
         response = codegen_model(prompt)
         if not response or 'generated_text' not in response[0]:
             return "Error: Model output was not as expected."
-        all_java_code.append(response[0]['generated_text'])
-    
-    # Join all the chunks into a single string
+        java_chunk = response[0]['generated_text']
+        all_java_code.append(java_chunk)
+
     return "\n".join(all_java_code)
 
 # Step 2: Convert the plain Java code to Spring Boot microservice
 def convert_java_to_spring_boot(java_code, codegen_model):
     all_spring_boot_code = []
     for chunk in chunk_input(java_code):
+        # Check the token length
+        tokenized_chunk = tokenizer(chunk, return_tensors='pt', truncation=True, max_length=512, padding="max_length")
+        if tokenized_chunk['input_ids'].size(1) > 512:
+            st.error("Chunk exceeds the token limit after tokenization.")
+            continue
+
         prompt = (
-            f"Refactor the following Java code into a Spring Boot microservice. "
-            f"Ensure it has proper annotations, controllers, services, and repository layers. "
-            f"Make sure to handle any dependencies and configurations needed for a Spring Boot application:\n\n{chunk}"
+            f"Refactor the following valid Java code into a Spring Boot microservice. "
+            f"Ensure it includes proper annotations, controllers, services, and repository layers:\n\n{chunk}"
         )
         response = codegen_model(prompt)
         if not response or 'generated_text' not in response[0]:
             return "Error: Model output was not as expected."
-        all_spring_boot_code.append(response[0]['generated_text'])
-    
-    # Join all the chunks into a single string
+        spring_boot_chunk = response[0]['generated_text']
+        all_spring_boot_code.append(spring_boot_chunk)
+
     return "\n".join(all_spring_boot_code)
 
 # Streamlit App
