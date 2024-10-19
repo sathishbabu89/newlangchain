@@ -19,8 +19,8 @@ def convert_cpp_to_java(cpp_code):
         f"{cpp_code}\n"
         "Java code:"
     )
-    inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(**inputs)
+    inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    output_sequences = incoder_model.generate(inputs['input_ids'], attention_mask=inputs['attention_mask'])
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return java_code
 
@@ -32,8 +32,8 @@ def convert_java_to_spring_boot(java_code):
         f"{java_code}\n"
         "Spring Boot code:"
     )
-    inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(**inputs)
+    inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    output_sequences = incoder_model.generate(inputs['input_ids'], attention_mask=inputs['attention_mask'])
     spring_boot_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return spring_boot_code
 
