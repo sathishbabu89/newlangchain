@@ -7,16 +7,24 @@ def read_cpp_file(uploaded_file):
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to a high-level Java representation."""
     
-    # Replace basic C++ constructs with their Java counterparts
     java_code = cpp_code
     
     # Replace main function
     java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
     
-    # Replace C++ includes with Java imports (just a placeholder)
+    # Replace C++ includes with Java imports
     java_code = java_code.replace("#include <iostream>", "import java.io.*;")
     java_code = java_code.replace("#include <string>", "import java.util.*;")
+    java_code = java_code.replace("#include <vector>", "import java.util.*;")  # Vector equivalent in Java
+    java_code = java_code.replace("#include <cstdlib>", "")  # No direct equivalent needed
+    java_code = java_code.replace("#include <ctime>", "import java.util.*;")  # For time handling in Java
     
+    # Replace std:: and specific C++ constructs
+    java_code = java_code.replace("std::", "")  # Remove std::
+    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
+    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
+    java_code = java_code.replace("endl", ";")  # Replace endl with a semicolon (Java line ending)
+
     # Abstract CURL handling
     java_code = java_code.replace("CURL", "HttpURLConnection")  # Placeholder for CURL
     java_code = java_code.replace("curl_easy_setopt", "// TODO: Set HTTP request options")
