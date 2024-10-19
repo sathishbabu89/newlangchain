@@ -8,12 +8,6 @@ def read_cpp_file(uploaded_file):
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to a high-level Java representation."""
     
-    # Start with the original code
-    java_code = cpp_code
-    
-    # Replace main function
-    java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
-    
     # Initialize imports and keep track of which ones to include
     imports = set()
     
@@ -27,22 +21,28 @@ def convert_cpp_to_java(cpp_code):
     if "#include <ctime>" in cpp_code:
         imports.add("import java.util.*;")  # For time handling in Java
 
-    # Add the imports to the beginning of the java_code
-    if imports:
-        java_code = "\n".join(imports) + "\n" + java_code
+    # Start with the original code
+    java_code = cpp_code
+    
+    # Remove C++ headers
+    for header in ["#include <iostream>", "#include <string>", "#include <vector>", "#include <ctime>"]:
+        java_code = java_code.replace(header, "")
+
+    # Replace main function
+    java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
     
     # Replace std:: and specific C++ constructs
     java_code = java_code.replace("std::", "")  # Remove std::
-    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
-    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
+    java_code = java_code.replace("cout", "System.out.println");  # Prepare for print statements
+    java_code = java_code.replace("<<", " + ");  # Replace << with string concatenation
     java_code = java_code.replace("endl", "");  # Remove endl since it will be handled by + "\n"
-    
-    # Fix System.out.println statements
-    java_code = java_code.replace("System.out", "System.out.println")  # Correct print statements
     
     # Convert constructors
     java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
 
+    # Fix System.out.println statements
+    java_code = re.sub(r'System.out.println\s*\+\s*(.*?);', r'System.out.println(\1);', java_code)
+    
     # Abstract CURL handling
     java_code = java_code.replace("CURL", "HttpURLConnection")  # Placeholder for CURL
     java_code = java_code.replace("curl_easy_setopt", "// TODO: Set HTTP request options")
@@ -55,6 +55,10 @@ def convert_cpp_to_java(cpp_code):
     # General comments for user to complete the code
     java_code += "\n// TODO: Implement the logic for HTTP requests and JSON parsing based on the C++ code structure."
     
+    # Add imports to the beginning of the java_code
+    if imports:
+        java_code = "\n".join(imports) + "\n" + java_code
+
     return java_code
 
 def main():
