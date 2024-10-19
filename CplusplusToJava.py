@@ -1,104 +1,85 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from sentence_transformers import SentenceTransformer
 
-# Load the tokenizer and code generation model
-tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
-model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
+# Load the CodeGen2 model
+tokenizer = AutoTokenizer.from_pretrained("Salesforce/codegen-2-1B-P")
+model = AutoModelForCausalLM.from_pretrained("Salesforce/codegen-2-1B-P")
 
-# Check and add a padding token if it doesn't exist
 if tokenizer.pad_token is None:
-    # Add a new padding token if it is not already defined
-    tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Add '[PAD]' as the padding token
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
-# Display the padding token for confirmation
-st.write(f"Padding token: '{tokenizer.pad_token}'")  # Display the padding token used
-
-@st.cache_resource
-def load_embedding_model():
-    return SentenceTransformer('microsoft/codebert-base')
-
-# Read the uploaded C++ file content
 def read_cpp_file(uploaded_file):
     return uploaded_file.read().decode("utf-8")
 
-# Function to chunk input text
-def chunk_input(input_text, chunk_size=300):
-    tokens = input_text.split()
-    for i in range(0, len(tokens), chunk_size):
-        yield ' '.join(tokens[i:i + chunk_size])
+def dynamic_chunk_input(input_text):
+    # Split based on functions or classes (this is a simple heuristic)
+    return input_text.split('\n\n')  # Splits by double newlines
 
-# Step 1: Convert C++ code to plain Java code
-def convert_cpp_to_plain_java(cpp_code):
+def convert_cpp_to_java(cpp_code):
     all_java_code = []
-    for chunk in chunk_input(cpp_code):
+    chunks = dynamic_chunk_input(cpp_code)
+    
+    for chunk in chunks:
         prompt = (
-            "You are a programming assistant. "
+            "You are a programming assistant specialized in converting code. "
             "Convert the following valid C++ code to equivalent Java code. "
-            "Maintain correct syntax and avoid redundancy. "
-            "Here is the C++ code:\n\n"
-            f"{chunk}\n\n"
-            "Please provide the corresponding Java code."
+            "Please maintain correct syntax and provide clean and efficient Java code.\n\n"
+            f"C++ code:\n{chunk}\n\nJava code:"
         )
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="longest")
-        output_sequences = model.generate(**inputs, max_new_tokens=1000)
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        output_sequences = model.generate(**inputs, max_new_tokens=500)
         java_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_java_code.append(java_chunk)
 
-    return "\n".join(all_java_code)
+    return "\n\n".join(all_java_code)
 
-# Step 2: Convert the plain Java code to Spring Boot microservice
 def convert_java_to_spring_boot(java_code):
     all_spring_boot_code = []
-    for chunk in chunk_input(java_code):
+    chunks = dynamic_chunk_input(java_code)
+
+    for chunk in chunks:
         prompt = (
-            "You are a programming assistant. "
+            "You are a programming assistant specialized in Spring Boot. "
             "Refactor the following valid Java code into a Spring Boot microservice. "
-            "Ensure it includes proper annotations, controllers, services, and repository layers. "
-            "Here is the Java code:\n\n"
-            f"{chunk}\n\n"
-            "Please provide the corresponding Spring Boot microservice code."
+            "Ensure proper annotations, controllers, services, and repository layers are included.\n\n"
+            f"Java code:\n{chunk}\n\nSpring Boot code:"
         )
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="longest")
-        output_sequences = model.generate(**inputs, max_new_tokens=1000)
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        output_sequences = model.generate(**inputs, max_new_tokens=500)
         spring_boot_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_spring_boot_code.append(spring_boot_chunk)
 
-    return "\n".join(all_spring_boot_code)
+    return "\n\n".join(all_spring_boot_code)
 
-# Streamlit App
 def main():
     st.title("C++ to Java Spring Boot Microservice Converter")
 
-    # File Upload Section
-    st.subheader("Upload your C++ code file:")
     uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
-
+    
     if uploaded_file is not None:
-        # Read the uploaded C++ file
         cpp_code = read_cpp_file(uploaded_file)
-        
-        # Display the uploaded C++ code
         st.subheader("Uploaded C++ Code:")
         st.code(cpp_code, language='cpp')
 
-        # Button to trigger the conversion
         if st.button("Convert to Java Microservice"):
             try:
-                # Step 1: Convert C++ to Java
-                java_code = convert_cpp_to_plain_java(cpp_code)
+                java_code = convert_cpp_to_java(cpp_code)
                 if not java_code.strip():
                     st.error("Generated Java code is empty or invalid.")
                     return
-                st.subheader("Step 1: Generated Plain Java Code:")
+                st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
 
-                # Step 2: Convert Java to Spring Boot microservice
                 spring_boot_code = convert_java_to_spring_boot(java_code)
-                st.subheader("Step 2: Generated Java Spring Boot Microservice Code:")
+                st.subheader("Generated Java Spring Boot Microservice Code:")
                 st.code(spring_boot_code, language='java')
 
-                # Option to download the generated Spring Boot code
+                # Feedback Loop
+                feedback = st.text_area("Provide feedback or adjustments for the generated Spring Boot code:")
+                if st.button("Submit Feedback"):
+                    st.success("Thank you for your feedback!")
+                    # Here, you could log the feedback or take further action
+
                 st.download_button("Download Spring Boot Code", spring_boot_code, file_name="ConvertedSpringBootMicroservice.java")
 
             except Exception as e:
