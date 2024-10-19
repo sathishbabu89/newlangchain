@@ -1,70 +1,48 @@
 import streamlit as st
-import re
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
+import re  # Import regular expressions
 
-# Load the LLM model and set padding token
-llm_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
-if llm_tokenizer.pad_token is None:
-    llm_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-llm_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
+# Load models
+incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
+
+# Check and set the padding token
+if incoder_tokenizer.pad_token is None:
+    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Define a padding token
+
+codebert_model = SentenceTransformer('microsoft/codebert-base')
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
-    """Convert C++ code to a high-level Java representation."""
-    imports = set()
-    
-    # Handle includes and translate to Java imports
-    if "#include <iostream>" in cpp_code:
-        imports.add("import java.io.*;")
-    if "#include <string>" in cpp_code:
-        imports.add("import java.util.*;")
-    if "#include <vector>" in cpp_code:
-        imports.add("import java.util.*;")  # Vector equivalent in Java
-    if "#include <ctime>" in cpp_code:
-        imports.add("import java.util.*;")  # For time handling in Java
-
-    java_code = cpp_code
-    
-    # Remove C++ headers
-    for header in ["#include <iostream>", "#include <string>", "#include <vector>", "#include <ctime>"]:
-        java_code = java_code.replace(header, "")
-
-    java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
-    java_code = java_code.replace("std::", "")
-    java_code = java_code.replace("cout", "System.out.println")
-    java_code = java_code.replace("<<", " + ")
-    java_code = java_code.replace("endl", "")
-    
-    # Convert constructors
-    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)
-
-    return java_code, imports
-
-def refine_java_code(java_code):
-    """Use LLM to refine the generated Java code."""
+    """Convert C++ code to Java code using the Incoder model."""
     prompt = (
-        "Please correct and improve the following Java code:\n"
-        f"{java_code}\n"
-        "Corrected Java code:"
+        "You are a programming assistant. "
+        "Convert the following C++ code to Java code completely:\n"
+        f"{cpp_code}\n"
+        "Java code:"
     )
-
-    inputs = llm_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-
-    output_sequences = llm_model.generate(
-        inputs['input_ids'],
-        attention_mask=inputs['attention_mask'],
-        max_new_tokens=500
+    inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    output_sequences = incoder_model.generate(
+        inputs['input_ids'], 
+        attention_mask=inputs['attention_mask'], 
+        max_new_tokens=500  # Keep this high for detailed output
     )
+    
+    # Decode the output and filter unwanted parts
+    java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
-    refined_java_code = llm_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-
-    if "Corrected Java code:" in refined_java_code:
-        refined_java_code = refined_java_code.split("Corrected Java code:")[-1].strip()
-
-    return refined_java_code
+    # Clean the output by splitting and taking relevant parts
+    if "Java code:" in java_code:
+        java_code = java_code.split("Java code:")[-1].strip()
+    
+    # Further clean unwanted patterns
+    cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
+    
+    return cleaned_java_code
 
 def main():
     """Main function to run the Streamlit app."""
@@ -80,29 +58,16 @@ def main():
         # Convert C++ to Java
         if st.button("Convert C++ to Java"):
             try:
-                java_code, imports = convert_cpp_to_java(cpp_code)
-                
-                # Add imports to the beginning of the java_code
-                if imports:
-                    java_code = "\n".join(imports) + "\n" + java_code
-                
+                java_code = convert_cpp_to_java(cpp_code)
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
-                
-                # Store the Java code in session state for refinement
-                st.session_state.java_code = java_code
+
+                # Use CodeBERT for semantic understanding (optional)
+                java_embeddings = codebert_model.encode(java_code)
+                st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
-
-        # Button to refine the Java code
-        if "java_code" in st.session_state and st.button("Refine Java Code"):
-            try:
-                refined_java_code = refine_java_code(st.session_state.java_code)
-                st.subheader("Refined Java Code:")
-                st.code(refined_java_code, language='java')
-            except Exception as e:
-                st.error(f"Error during refinement: {e}")
 
 if __name__ == "__main__":
     main()
