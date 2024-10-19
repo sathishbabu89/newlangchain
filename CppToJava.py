@@ -19,7 +19,6 @@ def read_cpp_file(uploaded_file):
 
 def extract_functions(cpp_code):
     """Extract functions from the C++ code."""
-    # Revised regex to capture more complex function definitions
     func_pattern = r'([a-zA-Z_][a-zA-Z0-9_]*\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^()]*\)\s*(const\s*)?{[^{}]*}'
     functions = re.findall(func_pattern, cpp_code, re.DOTALL)
     return functions
@@ -33,14 +32,18 @@ def convert_cpp_chunk(chunk):
         "Java code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(
-        inputs['input_ids'], 
-        attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500
-    )
     
-    java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-    return java_code.split("Java code:")[-1].strip()
+    try:
+        output_sequences = incoder_model.generate(
+            inputs['input_ids'], 
+            attention_mask=inputs['attention_mask'], 
+            max_new_tokens=500
+        )
+        java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+        return java_code.split("Java code:")[-1].strip()
+    except Exception as e:
+        st.error(f"Model conversion error: {e}")
+        return ""
 
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code by chunking."""
@@ -57,7 +60,9 @@ def convert_cpp_to_java(cpp_code):
     
     for function in functions:
         st.write(f"Converting function: {function}")  # Log the function being converted
-        java_code += convert_cpp_chunk(function) + "\n\n"  # Convert each function and append
+        # Ensure that only the relevant part of the function is passed
+        function_code = function[0] if isinstance(function, tuple) else function
+        java_code += convert_cpp_chunk(function_code) + "\n\n"  # Convert each function and append
     
     return java_code.strip()
 
