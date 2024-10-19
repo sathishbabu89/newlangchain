@@ -40,14 +40,14 @@ def convert_cpp_to_java(cpp_code):
     
     # Replace std:: and specific C++ constructs
     java_code = java_code.replace("std::", "")  # Remove std::
-    java_code = java_code.replace("cout", "System.out.println");  # Prepare for print statements
-    java_code = java_code.replace("<<", " + ");  # Replace << with string concatenation
+    java_code = java_code.replace("cout", "System.out.println")  # Prepare for print statements
+    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
     java_code = java_code.replace("endl", "");  # Remove endl since it will be handled by + "\n"
     
     # Convert constructors
     java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
 
-    # Return the basic Java code
+    # Return the basic Java code and imports
     return java_code, imports
 
 def refine_java_code(java_code):
@@ -67,6 +67,10 @@ def refine_java_code(java_code):
     )
 
     refined_java_code = llm_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+
+    # Avoid duplicating the "Corrected Java code:" prompt in the output
+    if "Corrected Java code:" in refined_java_code:
+        refined_java_code = refined_java_code.split("Corrected Java code:")[-1].strip()
 
     return refined_java_code
 
@@ -90,14 +94,23 @@ def main():
                 if imports:
                     java_code = "\n".join(imports) + "\n" + java_code
                 
-                # Refine the generated Java code using LLM
-                refined_java_code = refine_java_code(java_code)
-
                 st.subheader("Generated Java Code:")
-                st.code(refined_java_code, language='java')
+                st.code(java_code, language='java')
+                
+                # Store the Java code in session state for refinement
+                st.session_state.java_code = java_code
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
+
+        # Button to refine the Java code
+        if "java_code" in st.session_state and st.button("Refine Java Code"):
+            try:
+                refined_java_code = refine_java_code(st.session_state.java_code)
+                st.subheader("Refined Java Code:")
+                st.code(refined_java_code, language='java')
+            except Exception as e:
+                st.error(f"Error during refinement: {e}")
 
 if __name__ == "__main__":
     main()
