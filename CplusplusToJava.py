@@ -8,7 +8,7 @@ import os
 # Load the embedding model and code generation model
 @st.cache_resource
 def load_embedding_model():
-    return SentenceTransformer('sentence-transformers/codebert-base')
+    return SentenceTransformer('microsoft/codebert-base')
 
 @st.cache_resource
 def load_codegen_model():
@@ -23,9 +23,18 @@ def initialize_faiss_index(embedding_model):
 def read_cpp_file(uploaded_file):
     return uploaded_file.read().decode("utf-8")
 
-# Convert C++ code to Java Spring Boot microservice using the code generation model
-def convert_cpp_to_java_microservice(cpp_code, codegen_model):
-    prompt = f"Convert this C++ code to a Java Spring Boot microservice:\n{cpp_code}"
+# Step 1: Convert C++ code to plain Java code
+def convert_cpp_to_plain_java(cpp_code, codegen_model):
+    prompt = f"Convert the following C++ code into equivalent Java code:\n\n{cpp_code}"
+    response = codegen_model(prompt)
+    return response[0]['generated_text']
+
+# Step 2: Convert the plain Java code to Spring Boot microservice
+def convert_java_to_spring_boot(java_code, codegen_model):
+    prompt = (
+        f"Refactor the following Java code into a Spring Boot microservice. "
+        f"Include REST controllers, services, and repository layers:\n\n{java_code}"
+    )
     response = codegen_model(prompt)
     return response[0]['generated_text']
 
@@ -48,18 +57,20 @@ def main():
         # Button to trigger the conversion
         if st.button("Convert to Java Microservice"):
             try:
-                embedding_model = load_embedding_model()
                 codegen_model = load_codegen_model()
 
-                # Convert C++ to Java Spring Boot microservice code
-                java_code = convert_cpp_to_java_microservice(cpp_code, codegen_model)
-
-                # Display the generated Java code
-                st.subheader("Generated Java Spring Boot Microservice Code:")
+                # Step 1: Convert C++ to Java
+                java_code = convert_cpp_to_plain_java(cpp_code, codegen_model)
+                st.subheader("Step 1: Generated Plain Java Code:")
                 st.code(java_code, language='java')
 
-                # Option to download the generated Java code as a file
-                st.download_button("Download Java Code", java_code, file_name="ConvertedMicroservice.java")
+                # Step 2: Convert Java to Spring Boot microservice
+                spring_boot_code = convert_java_to_spring_boot(java_code, codegen_model)
+                st.subheader("Step 2: Generated Java Spring Boot Microservice Code:")
+                st.code(spring_boot_code, language='java')
+
+                # Option to download the generated Spring Boot code
+                st.download_button("Download Spring Boot Code", spring_boot_code, file_name="ConvertedSpringBootMicroservice.java")
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
