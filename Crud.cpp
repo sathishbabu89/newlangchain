@@ -2,56 +2,74 @@
 #include <vector>
 #include <string>
 
-using namespace std;
-
-class Customer {
+class User {
 public:
     int id;
-    string name;
+    std::string name;
+    std::string email;
 
-    Customer(int id, string name) : id(id), name(name) {}
+    User(int uid, const std::string &uname, const std::string &uemail)
+        : id(uid), name(uname), email(uemail) {}
 };
 
-class CustomerService {
+class UserManagement {
 private:
-    vector<Customer> customers;
+    std::vector<User> users;
+    int nextId;
 
 public:
-    void addCustomer(int id, string name) {
-        customers.push_back(Customer(id, name));
-        cout << "Customer added: " << name << endl;
+    UserManagement() : nextId(1) {}
+
+    void createUser(const std::string &name, const std::string &email) {
+        User newUser(nextId++, name, email);
+        users.push_back(newUser);
+        std::cout << "User created: " << name << std::endl;
     }
 
-    void deleteCustomer(int id) {
-        for (auto it = customers.begin(); it != customers.end(); ++it) {
-            if (it->id == id) {
-                cout << "Customer deleted: " << it->name << endl;
-                customers.erase(it);
+    void readUsers() {
+        std::cout << "User List:\n";
+        for (const auto &user : users) {
+            std::cout << "ID: " << user.id << ", Name: " << user.name
+                      << ", Email: " << user.email << std::endl;
+        }
+    }
+
+    void updateUser(int id, const std::string &name, const std::string &email) {
+        for (auto &user : users) {
+            if (user.id == id) {
+                user.name = name;
+                user.email = email;
+                std::cout << "User updated: " << name << std::endl;
                 return;
             }
         }
-        cout << "Customer not found!" << endl;
+        std::cout << "User not found!" << std::endl;
     }
 
-    void listCustomers() {
-        for (const auto& customer : customers) {
-            cout << "Customer ID: " << customer.id << ", Name: " << customer.name << endl;
+    void deleteUser(int id) {
+        for (auto it = users.begin(); it != users.end(); ++it) {
+            if (it->id == id) {
+                std::cout << "User deleted: " << it->name << std::endl;
+                users.erase(it);
+                return;
+            }
         }
+        std::cout << "User not found!" << std::endl;
     }
 };
 
 int main() {
-    CustomerService service;
-    service.addCustomer(1, "John Doe");
-    service.addCustomer(2, "Jane Smith");
+    UserManagement userManager;
 
-    cout << "All customers:" << endl;
-    service.listCustomers();
+    userManager.createUser("Alice", "alice@example.com");
+    userManager.createUser("Bob", "bob@example.com");
+    userManager.readUsers();
 
-    service.deleteCustomer(1);
+    userManager.updateUser(1, "Alice Smith", "alice.smith@example.com");
+    userManager.readUsers();
 
-    cout << "All customers after deletion:" << endl;
-    service.listCustomers();
+    userManager.deleteUser(2);
+    userManager.readUsers();
 
     return 0;
 }
