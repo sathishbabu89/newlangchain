@@ -6,66 +6,61 @@ import re  # Import regular expressions
 incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
 incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
-# Check and set the padding token
+# Set padding token if not already defined
 if incoder_tokenizer.pad_token is None:
-    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Define a padding token
+    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
-    """Convert C++ code to Java code using the Incoder model and additional manual adjustments."""
+    """Convert C++ code to Java code using the Incoder model."""
     
-    # Step 1: Use the model to generate Java code
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code:\n"
+        "Convert the following C++ code to Java code completely:\n"
         f"{cpp_code}\n"
         "Java code:"
     )
+
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-    
+
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500  # Keep this high for detailed output
+        max_new_tokens=500  # Adjust for detailed output
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
-    # Step 2: Manual adjustments
-    # Replace C++ includes with Java imports
+    # Manual adjustments to clean up the generated Java code
+    java_code = java_code.replace("std::", "")  # Remove std::
+    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
+    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
+    java_code = java_code.replace("endl", "");  # Remove endl
+
+    # Correct System.out.println statements
+    java_code = java_code.replace("System.out", "System.out.println")  # Ensure print statements are correct
+
+    # Handle constructors more accurately
+    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)
+
+    # Remove redundant imports
     imports = set()
-    
     if "#include <iostream>" in cpp_code:
         imports.add("import java.io.*;")
     if "#include <string>" in cpp_code:
         imports.add("import java.util.*;")
     if "#include <vector>" in cpp_code:
-        imports.add("import java.util.*;")  # Vector equivalent in Java
+        imports.add("import java.util.*;")
     if "#include <ctime>" in cpp_code:
-        imports.add("import java.util.*;")  # For time handling in Java
+        imports.add("import java.util.*;")
 
-    # Add the imports to the beginning of the java_code
+    # Prepend imports to the generated Java code
     if imports:
         java_code = "\n".join(imports) + "\n" + java_code
-    
-    # Replace std:: and specific C++ constructs
-    java_code = java_code.replace("std::", "")  # Remove std::
-    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
-    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
-    java_code = java_code.replace("endl", "");  # Remove endl since it will be handled by + "\n"
-    
-    # Correct System.out.println statements
-    java_code = java_code.replace("System.out", "System.out.println")  # Correct print statements
-    
-    # Convert constructors
-    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
 
-    # General comments for user to complete the code
-    java_code += "\n// TODO: Implement any additional logic based on the C++ code structure."
-    
     return java_code
 
 def main():
