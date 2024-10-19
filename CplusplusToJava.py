@@ -19,16 +19,15 @@ def read_cpp_file(uploaded_file):
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code using the Incoder model."""
     prompt = (
-        "You are a programming assistant. "
         "Convert the following C++ code to Java code:\n"
         f"{cpp_code}\n"
-        "Java code:"
+        "Provide only the Java code without additional comments or explanations."
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=200  # Set the number of tokens to generate
+        max_new_tokens=200
     )
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return java_code
@@ -36,16 +35,15 @@ def convert_cpp_to_java(cpp_code):
 def convert_java_to_spring_boot(java_code):
     """Convert Java code to a Spring Boot microservice code."""
     prompt = (
-        "You are a programming assistant. "
         "Convert the following Java code into a Spring Boot microservice:\n"
         f"{java_code}\n"
-        "Spring Boot code:"
+        "Provide only the Spring Boot code without additional comments or explanations."
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=200  # Set the number of tokens to generate
+        max_new_tokens=200
     )
     spring_boot_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return spring_boot_code
@@ -58,8 +56,6 @@ def main():
     
     if uploaded_file is not None:
         cpp_code = read_cpp_file(uploaded_file)
-        st.subheader("Uploaded C++ Code:")
-        st.code(cpp_code, language='cpp')
 
         # Convert C++ to Java
         if st.button("Convert C++ to Java"):
