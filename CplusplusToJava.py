@@ -1,29 +1,43 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# Load the model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained("Salesforce/codegen-2-1B-P")
-model = AutoModelForCausalLM.from_pretrained("Salesforce/codegen-2-1B-P")
+# Load models
+incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 def read_cpp_file(uploaded_file):
+    """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
+    """Convert C++ code to Java code using the Incoder model."""
     prompt = (
-        "Convert the following C++ code to Java:\n"
+        "You are a programming assistant. "
+        "Convert the following C++ code to Java code:\n"
         f"{cpp_code}\n"
         "Java code:"
     )
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    
-    # Limit the output to prevent excessive responses
-    output_sequences = model.generate(**inputs, max_new_tokens=300)
-    
-    java_code = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
-    return java_code.strip()  # Clean up the response
+    inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output_sequences = incoder_model.generate(**inputs, max_new_tokens=300)
+    java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+    return java_code
+
+def convert_java_to_spring_boot(java_code):
+    """Convert Java code to a Spring Boot microservice code."""
+    prompt = (
+        "You are a programming assistant. "
+        "Convert the following Java code into a Spring Boot microservice:\n"
+        f"{java_code}\n"
+        "Spring Boot code:"
+    )
+    inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output_sequences = incoder_model.generate(**inputs, max_new_tokens=500)
+    spring_boot_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+    return spring_boot_code
 
 def main():
-    st.title("C++ to Java Converter")
+    """Main function to run the Streamlit app."""
+    st.title("C++ to Java Spring Boot Microservice Converter")
 
     uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
     
@@ -32,14 +46,20 @@ def main():
         st.subheader("Uploaded C++ Code:")
         st.code(cpp_code, language='cpp')
 
-        if st.button("Convert to Java"):
+        # Convert C++ to Java
+        if st.button("Convert C++ to Java"):
             try:
                 java_code = convert_cpp_to_java(cpp_code)
-                if not java_code or "Java code:" in java_code:
-                    st.error("Generated Java code is empty or invalid.")
-                    return
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
+
+                # Button to convert Java code to Spring Boot microservice
+                if st.button("Convert Java to Spring Boot Microservice"):
+                    spring_boot_code = convert_java_to_spring_boot(java_code)
+                    st.subheader("Generated Spring Boot Code:")
+                    st.code(spring_boot_code, language='java')
+
+                    st.download_button("Download Spring Boot Code", spring_boot_code, file_name="SpringBootMicroservice.java")
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
