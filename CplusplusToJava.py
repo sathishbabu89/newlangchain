@@ -21,10 +21,7 @@ def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code using the Incoder model."""
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code, including any API calls. "
-        "Note that the C++ code uses curl for HTTP requests, vector for dynamic arrays, "
-        "and json for data handling. Please ensure the Java code is functional and mirrors "
-        "the functionality of the C++ code:\n"
+        "Convert the following C++ code to Java code completely:\n"
         f"{cpp_code}\n"
         "Java code:"
     )
