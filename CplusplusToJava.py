@@ -29,7 +29,7 @@ def convert_cpp_to_java(cpp_code):
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=200  # Set the number of tokens to generate
+        max_new_tokens=500  # Set the number of tokens to generate
     )
     
     # Decode the output and filter unwanted parts
