@@ -14,8 +14,6 @@ def read_cpp_file(uploaded_file):
 
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to a high-level Java representation."""
-    
-    # Initialize imports and track which ones to include
     imports = set()
     
     # Handle includes and translate to Java imports
@@ -28,26 +26,21 @@ def convert_cpp_to_java(cpp_code):
     if "#include <ctime>" in cpp_code:
         imports.add("import java.util.*;")  # For time handling in Java
 
-    # Start with the original code
     java_code = cpp_code
     
     # Remove C++ headers
     for header in ["#include <iostream>", "#include <string>", "#include <vector>", "#include <ctime>"]:
         java_code = java_code.replace(header, "")
 
-    # Replace main function
     java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
-    
-    # Replace std:: and specific C++ constructs
-    java_code = java_code.replace("std::", "")  # Remove std::
-    java_code = java_code.replace("cout", "System.out.println")  # Prepare for print statements
-    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
-    java_code = java_code.replace("endl", "");  # Remove endl since it will be handled by + "\n"
+    java_code = java_code.replace("std::", "")
+    java_code = java_code.replace("cout", "System.out.println")
+    java_code = java_code.replace("<<", " + ")
+    java_code = java_code.replace("endl", "")
     
     # Convert constructors
-    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
+    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)
 
-    # Return the basic Java code and imports
     return java_code, imports
 
 def refine_java_code(java_code):
@@ -68,7 +61,6 @@ def refine_java_code(java_code):
 
     refined_java_code = llm_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
-    # Avoid duplicating the "Corrected Java code:" prompt in the output
     if "Corrected Java code:" in refined_java_code:
         refined_java_code = refined_java_code.split("Corrected Java code:")[-1].strip()
 
