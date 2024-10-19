@@ -1,9 +1,11 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
 
 # Load models
 incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
 incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
+codebert_model = SentenceTransformer('microsoft/codebert-base')
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
@@ -18,7 +20,7 @@ def convert_cpp_to_java(cpp_code):
         "Java code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(**inputs, max_new_tokens=300)
+    output_sequences = incoder_model.generate(**inputs)
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return java_code
 
@@ -31,7 +33,7 @@ def convert_java_to_spring_boot(java_code):
         "Spring Boot code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(**inputs, max_new_tokens=500)
+    output_sequences = incoder_model.generate(**inputs)
     spring_boot_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
     return spring_boot_code
 
@@ -52,6 +54,10 @@ def main():
                 java_code = convert_cpp_to_java(cpp_code)
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
+
+                # Use CodeBERT for semantic understanding (optional)
+                java_embeddings = codebert_model.encode(java_code)
+                st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
 
                 # Button to convert Java code to Spring Boot microservice
                 if st.button("Convert Java to Spring Boot Microservice"):
