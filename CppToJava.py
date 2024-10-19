@@ -27,7 +27,7 @@ def convert_cpp_chunk(chunk):
     """Convert a chunk of C++ code to Java code."""
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ function to Java code:\n"
+        "Please convert the following C++ function into valid Java code, preserving the logic:\n"
         f"{chunk}\n"
         "Java code:"
     )
@@ -39,8 +39,12 @@ def convert_cpp_chunk(chunk):
             attention_mask=inputs['attention_mask'], 
             max_new_tokens=500
         )
-        java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-        return java_code.split("Java code:")[-1].strip()
+        raw_output = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+        
+        st.write("Raw Model Output:", raw_output)  # Log raw output for debugging
+
+        java_code = raw_output.split("Java code:")[-1].strip()
+        return java_code
     except Exception as e:
         st.error(f"Model conversion error: {e}")
         return ""
@@ -60,7 +64,6 @@ def convert_cpp_to_java(cpp_code):
     
     for function in functions:
         st.write(f"Converting function: {function}")  # Log the function being converted
-        # Ensure that only the relevant part of the function is passed
         function_code = function[0] if isinstance(function, tuple) else function
         java_code += convert_cpp_chunk(function_code) + "\n\n"  # Convert each function and append
     
