@@ -1,6 +1,7 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
+import re  # Import regular expressions
 
 # Load models
 incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
@@ -37,7 +38,11 @@ def convert_cpp_to_java(cpp_code):
     # Clean the output by splitting and taking relevant parts
     if "Java code:" in java_code:
         java_code = java_code.split("Java code:")[-1].strip()
-    return java_code
+    
+    # Further clean unwanted patterns
+    cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
+    
+    return cleaned_java_code
 
 def main():
     """Main function to run the Streamlit app."""
