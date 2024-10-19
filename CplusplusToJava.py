@@ -5,6 +5,11 @@ from sentence_transformers import SentenceTransformer
 # Load models
 incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
 incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
+
+# Check and set the padding token
+if incoder_tokenizer.pad_token is None:
+    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Define a padding token
+
 codebert_model = SentenceTransformer('microsoft/codebert-base')
 
 def read_cpp_file(uploaded_file):
