@@ -1,66 +1,60 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import re  # Import regular expressions
-
-# Load models
-incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
-incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
-
-# Set padding token if not already defined
-if incoder_tokenizer.pad_token is None:
-    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
-    """Convert C++ code to Java code using the Incoder model."""
+    """Convert C++ code to a high-level Java representation."""
     
-    prompt = (
-        "You are a programming assistant. "
-        "Convert the following C++ code to Java code completely:\n"
-        f"{cpp_code}\n"
-        "Java code:"
-    )
-
-    inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-
-    output_sequences = incoder_model.generate(
-        inputs['input_ids'], 
-        attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500  # Adjust for detailed output
-    )
+    # Start with the original code
+    java_code = cpp_code
     
-    java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-
-    # Manual adjustments to clean up the generated Java code
-    java_code = java_code.replace("std::", "")  # Remove std::
-    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
-    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
-    java_code = java_code.replace("endl", "");  # Remove endl
-
-    # Correct System.out.println statements
-    java_code = java_code.replace("System.out", "System.out.println")  # Ensure print statements are correct
-
-    # Handle constructors more accurately
-    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)
-
-    # Remove redundant imports
+    # Replace main function
+    java_code = java_code.replace("int main() {", "public static void main(String[] args) {")
+    
+    # Initialize imports and keep track of which ones to include
     imports = set()
+    
+    # Handle includes and translate to Java imports
     if "#include <iostream>" in cpp_code:
         imports.add("import java.io.*;")
     if "#include <string>" in cpp_code:
         imports.add("import java.util.*;")
     if "#include <vector>" in cpp_code:
-        imports.add("import java.util.*;")
+        imports.add("import java.util.*;")  # Vector equivalent in Java
     if "#include <ctime>" in cpp_code:
-        imports.add("import java.util.*;")
+        imports.add("import java.util.*;")  # For time handling in Java
 
-    # Prepend imports to the generated Java code
+    # Add the imports to the beginning of the java_code
     if imports:
         java_code = "\n".join(imports) + "\n" + java_code
+    
+    # Replace std:: and specific C++ constructs
+    java_code = java_code.replace("std::", "")  # Remove std::
+    java_code = java_code.replace("cout", "System.out")  # Replace cout with System.out
+    java_code = java_code.replace("<<", " + ")  # Replace << with string concatenation
+    java_code = java_code.replace("endl", "");  # Remove endl since it will be handled by + "\n"
+    
+    # Fix System.out.println statements
+    java_code = java_code.replace("System.out", "System.out.println")  # Correct print statements
+    
+    # Convert constructors
+    java_code = re.sub(r'(\w+)\s*::(\w+)\s*\((.*?)\)', r'\2(\3) {', java_code)  # Adjust C++ constructors to Java
 
+    # Abstract CURL handling
+    java_code = java_code.replace("CURL", "HttpURLConnection")  # Placeholder for CURL
+    java_code = java_code.replace("curl_easy_setopt", "// TODO: Set HTTP request options")
+    java_code = java_code.replace("curl_easy_perform", "// TODO: Perform the HTTP request")
+    
+    # Abstract JSON handling
+    java_code = java_code.replace("Json::Value", "JsonObject")  # Placeholder for JSON handling
+    java_code = java_code.replace("Json::Reader", "// TODO: Initialize JSON reader")
+    
+    # General comments for user to complete the code
+    java_code += "\n// TODO: Implement the logic for HTTP requests and JSON parsing based on the C++ code structure."
+    
     return java_code
 
 def main():
