@@ -1,10 +1,10 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 
 # Load the tokenizer and code generation model
-tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-6B")
-model = AutoModelForSeq2SeqLM.from_pretrained("facebook/incoder-6B")
+tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 # Add a padding token if it doesn't exist
 if tokenizer.pad_token is None:
