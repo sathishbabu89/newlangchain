@@ -4,21 +4,39 @@ from sentence_transformers import SentenceTransformer
 import re
 
 # Load models
-try:
-    incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
-    incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
-    codebert_model = SentenceTransformer('microsoft/codebert-base')
-except Exception as e:
-    st.error(f"Error loading models: {e}")
+incoder_tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-1B")
+incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 # Check and set the padding token
 if incoder_tokenizer.pad_token is None:
-    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Define a padding token
+
+codebert_model = SentenceTransformer('microsoft/codebert-base')
 
 def read_cpp_file(uploaded_file):
+    """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
+def handle_complex_patterns(cpp_code):
+    """Handle specific complex patterns in C++ code."""
+    # Example: Convert CURL requests to a Java HTTP equivalent
+    cpp_code = re.sub(r'/* CURL request regex */', '/* Java HTTP request */', cpp_code)
+    # Add more pattern handling as needed
+    return cpp_code
+
+def post_process_java_code(java_code):
+    """Post-process the generated Java code for improvements."""
+    # Implement checks and transformations
+    java_code = re.sub(r'some_pattern_to_fix', 'replacement', java_code)
+    # Add more post-processing as needed
+    return java_code
+
 def convert_cpp_to_java(cpp_code):
+    """Convert C++ code to Java code using the Incoder model."""
+    
+    # Preprocess complex patterns
+    cpp_code = handle_complex_patterns(cpp_code)
+
     prompt = (
         "You are a programming assistant. "
         "Convert the following C++ code to Java code completely:\n"
@@ -33,63 +51,36 @@ def convert_cpp_to_java(cpp_code):
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-    if "Java code:" in java_code:
-        java_code = java_code.split("Java code:")[-1].strip()
     
-    cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
-    return cleaned_java_code
+    # Post-process the Java code
+    java_code = post_process_java_code(java_code)
+    
+    return java_code
 
 def main():
+    """Main function to run the Streamlit app."""
     st.title("C++ to Java Converter")
 
-    col1, col2 = st.columns(2)
+    uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
+    
+    if uploaded_file is not None:
+        cpp_code = read_cpp_file(uploaded_file)
+        st.subheader("Uploaded C++ Code:")
+        st.code(cpp_code, language='cpp')
 
-    with col1:
-        uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
-        
-        if uploaded_file is not None:
-            cpp_code = read_cpp_file(uploaded_file)
-            st.subheader("Uploaded C++ Code:")
-            st.code(cpp_code, language='cpp')
-            
-            if st.button("Next"):
-                st.session_state.cpp_code = cpp_code
-                st.session_state.conversion_done = False
-
-    with col2:
-        if 'cpp_code' in st.session_state:
-            st.subheader("Convert C++ to Java")
-            
-            if not st.session_state.get('conversion_done', False):
-                if st.button("Convert C++ to Java"):
-                    try:
-                        java_code = convert_cpp_to_java(st.session_state.cpp_code)
-                        st.session_state.java_code = java_code
-                        st.session_state.conversion_done = True
-                        st.subheader("Generated Java Code:")
-                        st.code(java_code, language='java')
-                        st.session_state.accepted = False
-
-                    except Exception as e:
-                        st.error(f"Error during conversion: {e}")
-            else:
-                java_code = st.session_state.java_code
+        # Convert C++ to Java
+        if st.button("Convert C++ to Java"):
+            try:
+                java_code = convert_cpp_to_java(cpp_code)
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
 
-                accept_button = st.button("Accept")
-                reject_button = st.button("Reject")
-                
-                if accept_button:
-                    st.success("Conversion accepted!")
-                    st.session_state.clear()  # Reset state for a new conversion
+                # Use CodeBERT for semantic understanding (optional)
+                java_embeddings = codebert_model.encode(java_code)
+                st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
 
-                if reject_button:
-                    issue = st.text_input("What is the issue with the conversion?")
-                    if issue:
-                        st.session_state.cpp_code = issue  # Use issue as new C++ input for conversion
-                        st.session_state.conversion_done = False  # Reset conversion state
-                        st.write("Ready to retry conversion...")
+            except Exception as e:
+                st.error(f"Error during conversion: {e}")
 
 if __name__ == "__main__":
     main()
