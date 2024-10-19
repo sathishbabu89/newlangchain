@@ -19,7 +19,8 @@ def read_cpp_file(uploaded_file):
 
 def extract_functions(cpp_code):
     """Extract functions from the C++ code."""
-    func_pattern = r'([a-zA-Z_][a-zA-Z0-9_]*\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(.*?\)\s*{.*?}'
+    # Revised regex to capture more complex function definitions
+    func_pattern = r'([a-zA-Z_][a-zA-Z0-9_]*\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^()]*\)\s*(const\s*)?{[^{}]*}'
     functions = re.findall(func_pattern, cpp_code, re.DOTALL)
     return functions
 
@@ -43,7 +44,11 @@ def convert_cpp_chunk(chunk):
 
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code by chunking."""
+    st.write("Raw C++ Code:", cpp_code)  # Debug: Show raw C++ code
     functions = extract_functions(cpp_code)
+    
+    st.write("Extracted Functions:", functions)  # Debug: Show extracted functions
+    
     java_code = ""
     
     if not functions:
