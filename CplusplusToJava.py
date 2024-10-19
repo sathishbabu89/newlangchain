@@ -21,9 +21,11 @@ def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code using the Incoder model."""
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code, including any API calls:\n"
+        "Convert the following C++ code to Java code, including any API calls. "
+        "Note that the C++ code uses curl for HTTP requests, vector for dynamic arrays, "
+        "and json for data handling. Please ensure the Java code is functional and mirrors "
+        "the functionality of the C++ code:\n"
         f"{cpp_code}\n"
-        "Please ensure that the Java code is functional and mirrors the functionality of the C++ code:\n"
         "Java code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
