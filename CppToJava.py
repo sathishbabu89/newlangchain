@@ -1,6 +1,5 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from sentence_transformers import SentenceTransformer
 import re
 
 # Load models
@@ -11,38 +10,44 @@ incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 if incoder_tokenizer.pad_token is None:
     incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
-codebert_model = SentenceTransformer('microsoft/codebert-base')
-
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
-def handle_complex_patterns(cpp_code):
-    """Handle specific complex patterns in C++ code."""
-    # Example: Convert CURL requests and JSON parsing
-    cpp_code = re.sub(r'#include <curl/curl.h>', 'import java.net.*;\nimport java.io.*;', cpp_code)
-    cpp_code = re.sub(r'#include <jsoncpp/json/json.h>', 'import com.google.gson.*;', cpp_code)
-    cpp_code = re.sub(r'CURL\s*\*\s*curl;', 'HttpURLConnection connection;', cpp_code)
-    cpp_code = re.sub(r'curl_easy_setopt\(.*?\);', '', cpp_code)  # Remove CURL options for simplicity
-    return cpp_code
+def convert_curl_and_json(cpp_code):
+    """Convert CURL and JSON specific constructs from C++ to Java."""
+    # Replace C++ CURL code with Java's HttpURLConnection
+    java_code = re.sub(
+        r'CURL\s*\*\s*curl;\s*.*?curl_easy_setopt\((.*?)\);.*?curl_easy_perform\(curl\);',
+        r'HttpURLConnection connection = (HttpURLConnection) new URL("\1").openConnection();\n'
+        r'connection.setRequestMethod("POST");\n'
+        r'connection.setDoOutput(true);',
+        cpp_code, flags=re.DOTALL
+    )
 
-def post_process_java_code(java_code):
-    """Post-process the generated Java code for improvements."""
-    # Simple replacements or fixes can be added here
+    # Replace JSON parsing with Gson
+    java_code = re.sub(
+        r'Json::Value root;\s*Json::Reader reader;\s*if\s*\(!reader.parse\((.*?)\);\)',
+        r'JsonObject jsonObject = JsonParser.parseString("\1").getAsJsonObject();',
+        java_code, flags=re.DOTALL
+    )
+
     return java_code
 
 def convert_cpp_to_java(cpp_code):
-    """Convert C++ code to Java code using the Incoder model."""
+    """Convert C++ code to Java code."""
     
-    # Preprocess complex patterns
-    cpp_code = handle_complex_patterns(cpp_code)
+    # Handle specific patterns first
+    java_code = convert_curl_and_json(cpp_code)
 
+    # Generate Java code from the model for simpler constructs
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code, handling CURL and JSON parsing:\n"
-        f"{cpp_code}\n"
+        "Convert the following C++ code to Java code, handling basic constructs:\n"
+        f"{java_code}\n"
         "Java code:"
     )
+    
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
@@ -51,10 +56,7 @@ def convert_cpp_to_java(cpp_code):
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
-    
-    # Post-process the Java code
-    java_code = post_process_java_code(java_code)
-    
+
     return java_code
 
 def main():
@@ -74,10 +76,6 @@ def main():
                 java_code = convert_cpp_to_java(cpp_code)
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
-
-                # Use CodeBERT for semantic understanding (optional)
-                java_embeddings = codebert_model.encode(java_code)
-                st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")  # Display first few embedding values
 
             except Exception as e:
                 st.error(f"Error during conversion: {e}")
