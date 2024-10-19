@@ -9,7 +9,7 @@ incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 
 # Check and set the padding token
 if incoder_tokenizer.pad_token is None:
-    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})  # Define a padding token
+    incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
 codebert_model = SentenceTransformer('microsoft/codebert-base')
 
@@ -19,16 +19,16 @@ def read_cpp_file(uploaded_file):
 
 def handle_complex_patterns(cpp_code):
     """Handle specific complex patterns in C++ code."""
-    # Example: Convert CURL requests to a Java HTTP equivalent
-    cpp_code = re.sub(r'/* CURL request regex */', '/* Java HTTP request */', cpp_code)
-    # Add more pattern handling as needed
+    # Example: Convert CURL requests and JSON parsing
+    cpp_code = re.sub(r'#include <curl/curl.h>', 'import java.net.*;\nimport java.io.*;', cpp_code)
+    cpp_code = re.sub(r'#include <jsoncpp/json/json.h>', 'import com.google.gson.*;', cpp_code)
+    cpp_code = re.sub(r'CURL\s*\*\s*curl;', 'HttpURLConnection connection;', cpp_code)
+    cpp_code = re.sub(r'curl_easy_setopt\(.*?\);', '', cpp_code)  # Remove CURL options for simplicity
     return cpp_code
 
 def post_process_java_code(java_code):
     """Post-process the generated Java code for improvements."""
-    # Implement checks and transformations
-    java_code = re.sub(r'some_pattern_to_fix', 'replacement', java_code)
-    # Add more post-processing as needed
+    # Simple replacements or fixes can be added here
     return java_code
 
 def convert_cpp_to_java(cpp_code):
@@ -39,7 +39,7 @@ def convert_cpp_to_java(cpp_code):
 
     prompt = (
         "You are a programming assistant. "
-        "Convert the following C++ code to Java code completely:\n"
+        "Convert the following C++ code to Java code, handling CURL and JSON parsing:\n"
         f"{cpp_code}\n"
         "Java code:"
     )
