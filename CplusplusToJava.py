@@ -1,17 +1,18 @@
 import streamlit as st
-from transformers import pipeline, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from sentence_transformers import SentenceTransformer
 
 # Load the tokenizer and code generation model
 tokenizer = AutoTokenizer.from_pretrained("facebook/incoder-6B")
+model = AutoModelForSeq2SeqLM.from_pretrained("facebook/incoder-6B")
+
+# Add a padding token if it doesn't exist
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token  # Use the end-of-sequence token as the padding token
 
 @st.cache_resource
 def load_embedding_model():
     return SentenceTransformer('microsoft/codebert-base')
-
-@st.cache_resource
-def load_codegen_model():
-    return pipeline("text2text-generation", model="facebook/incoder-6B")
 
 # Read the uploaded C++ file content
 def read_cpp_file(uploaded_file):
@@ -23,32 +24,27 @@ def chunk_input(input_text, chunk_size=300):
     for i in range(0, len(tokens), chunk_size):
         yield ' '.join(tokens[i:i + chunk_size])
 
-# Function to check if Java code is valid
-def is_valid_java_code(java_code):
-    return "class" in java_code and "void" in java_code and "{" in java_code and "}" in java_code
-
 # Step 1: Convert C++ code to plain Java code
-def convert_cpp_to_plain_java(cpp_code, codegen_model):
+def convert_cpp_to_plain_java(cpp_code):
     all_java_code = []
     for chunk in chunk_input(cpp_code):
         prompt = (
             "You are a programming assistant. "
-            "Your task is to convert valid C++ code into equivalent Java code. "
-            "Make sure to maintain correct syntax and semantics. "
+            "Convert the following valid C++ code to equivalent Java code. "
+            "Maintain correct syntax and avoid redundancy. "
             "Here is the C++ code:\n\n"
             f"{chunk}\n\n"
             "Please provide the corresponding Java code."
         )
-        response = codegen_model(prompt, max_new_tokens=1000)  # Use max_new_tokens
-        if not response or 'generated_text' not in response[0]:
-            return "Error: Model output was not as expected."
-        java_chunk = response[0]['generated_text']
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="max_length")
+        output_sequences = model.generate(**inputs, max_new_tokens=1000)
+        java_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_java_code.append(java_chunk)
 
     return "\n".join(all_java_code)
 
 # Step 2: Convert the plain Java code to Spring Boot microservice
-def convert_java_to_spring_boot(java_code, codegen_model):
+def convert_java_to_spring_boot(java_code):
     all_spring_boot_code = []
     for chunk in chunk_input(java_code):
         # Check the token length
@@ -59,16 +55,15 @@ def convert_java_to_spring_boot(java_code, codegen_model):
 
         prompt = (
             "You are a programming assistant. "
-            "Your task is to refactor valid Java code into a Spring Boot microservice. "
-            "Make sure it includes proper annotations, controllers, services, and repository layers. "
+            "Refactor the following valid Java code into a Spring Boot microservice. "
+            "Ensure it includes proper annotations, controllers, services, and repository layers. "
             "Here is the Java code:\n\n"
             f"{chunk}\n\n"
             "Please provide the corresponding Spring Boot microservice code."
         )
-        response = codegen_model(prompt, max_new_tokens=1000)  # Use max_new_tokens
-        if not response or 'generated_text' not in response[0]:
-            return "Error: Model output was not as expected."
-        spring_boot_chunk = response[0]['generated_text']
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding="max_length")
+        output_sequences = model.generate(**inputs, max_new_tokens=1000)
+        spring_boot_chunk = tokenizer.decode(output_sequences[0], skip_special_tokens=True)
         all_spring_boot_code.append(spring_boot_chunk)
 
     return "\n".join(all_spring_boot_code)
@@ -92,18 +87,16 @@ def main():
         # Button to trigger the conversion
         if st.button("Convert to Java Microservice"):
             try:
-                codegen_model = load_codegen_model()
-
                 # Step 1: Convert C++ to Java
-                java_code = convert_cpp_to_plain_java(cpp_code, codegen_model)
-                if not is_valid_java_code(java_code):
-                    st.error("Generated Java code is invalid.")
+                java_code = convert_cpp_to_plain_java(cpp_code)
+                if not java_code.strip():
+                    st.error("Generated Java code is empty or invalid.")
                     return
                 st.subheader("Step 1: Generated Plain Java Code:")
                 st.code(java_code, language='java')
 
                 # Step 2: Convert Java to Spring Boot microservice
-                spring_boot_code = convert_java_to_spring_boot(java_code, codegen_model)
+                spring_boot_code = convert_java_to_spring_boot(java_code)
                 st.subheader("Step 2: Generated Java Spring Boot Microservice Code:")
                 st.code(spring_boot_code, language='java')
 
