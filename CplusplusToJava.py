@@ -39,7 +39,7 @@ def convert_cpp_to_plain_java(cpp_code, codegen_model):
             f"{chunk}\n\n"
             "Please provide the corresponding Java code."
         )
-        response = codegen_model(prompt)
+        response = codegen_model(prompt, max_new_tokens=1000)  # Use max_new_tokens
         if not response or 'generated_text' not in response[0]:
             return "Error: Model output was not as expected."
         java_chunk = response[0]['generated_text']
@@ -65,7 +65,7 @@ def convert_java_to_spring_boot(java_code, codegen_model):
             f"{chunk}\n\n"
             "Please provide the corresponding Spring Boot microservice code."
         )
-        response = codegen_model(prompt)
+        response = codegen_model(prompt, max_new_tokens=1000)  # Use max_new_tokens
         if not response or 'generated_text' not in response[0]:
             return "Error: Model output was not as expected."
         spring_boot_chunk = response[0]['generated_text']
