@@ -14,50 +14,73 @@ def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
-def convert_curl_and_json(cpp_code):
-    """Convert CURL and JSON specific constructs from C++ to Java."""
-    # Replace C++ CURL code with Java's HttpURLConnection
-    java_code = re.sub(
-        r'CURL\s*\*\s*curl;\s*.*?curl_easy_setopt\((.*?)\);.*?curl_easy_perform\(curl\);',
-        r'HttpURLConnection connection = (HttpURLConnection) new URL("\1").openConnection();\n'
-        r'connection.setRequestMethod("POST");\n'
-        r'connection.setDoOutput(true);',
-        cpp_code, flags=re.DOTALL
-    )
+def convert_curl_to_java(cpp_code):
+    """Convert CURL requests from C++ to Java HttpURLConnection."""
+    # Convert the function signature
+    cpp_code = re.sub(r'std::string makeRequest\((.*?)\)', 
+                      r'public static String makeRequest(String url, String method, String data) throws IOException', 
+                      cpp_code)
 
-    # Replace JSON parsing with Gson
-    java_code = re.sub(
-        r'Json::Value root;\s*Json::Reader reader;\s*if\s*\(!reader.parse\((.*?)\);\)',
-        r'JsonObject jsonObject = JsonParser.parseString("\1").getAsJsonObject();',
-        java_code, flags=re.DOTALL
-    )
+    # Replace CURL setup with HttpURLConnection
+    cpp_code = re.sub(r'CURL\s*\*\s*curl;', 'HttpURLConnection connection;', cpp_code)
+    cpp_code = re.sub(r'curl_easy_init\(\);', 'connection = (HttpURLConnection) new URL(url).openConnection();', cpp_code)
+    cpp_code = re.sub(r'curl_easy_setopt\(curl, CURLOPT_URL, url.c_str\(\);\)', 'connection.setRequestMethod(method);', cpp_code)
+    
+    # Handling request headers
+    cpp_code = re.sub(r'curl_easy_setopt\(curl, CURLOPT_HTTPHEADER, &headers\);', 
+                      'connection.setRequestProperty("Content-Type", "application/json");\n'
+                      'connection.setRequestProperty("Accept", "application/json");', cpp_code)
+    
+    # Handle data
+    cpp_code = re.sub(r'if\s*\(!data.empty\(\)\)\s*{(.*?)}', 
+                      'if (data != null && !data.isEmpty()) {\n'
+                      '    connection.setDoOutput(true);\n'
+                      '    try (OutputStream os = connection.getOutputStream()) {\n'
+                      '        os.write(data.getBytes());\n'
+                      '    }\n'
+                      '}', cpp_code, flags=re.DOTALL)
 
-    return java_code
+    # Replace response handling
+    cpp_code = re.sub(r'curl_easy_setopt\(curl, CURLOPT_WRITEDATA, &response\);', 
+                      'BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));\n'
+                      'StringBuilder response = new StringBuilder();\n'
+                      'String inputLine;\n'
+                      'while ((inputLine = in.readLine()) != null) {\n'
+                      '    response.append(inputLine);\n'
+                      '}\n'
+                      'in.close();\n'
+                      'return response.toString();', cpp_code)
+
+    return cpp_code
+
+def convert_json_to_java(cpp_code):
+    """Convert JSON parsing from C++ to Java using Gson without field mapping."""
+    cpp_code = re.sub(r'Json::Value root;\s*Json::Reader reader;', 
+                      'JsonObject jsonObject;', cpp_code)
+    cpp_code = re.sub(r'if\s*\(!reader.parse\((.*?)\);\)', 
+                      'jsonObject = JsonParser.parseString("\1").getAsJsonObject();', cpp_code)
+    
+    # Keep user-defined object parsing flexible
+    cpp_code = re.sub(r'User user;', 
+                      'User user = new User();', cpp_code)
+
+    # General structure for parsing JSON
+    cpp_code = re.sub(r'// Handle parsing error', 
+                      '// Handle parsing error if needed', cpp_code)
+
+    return cpp_code
 
 def convert_cpp_to_java(cpp_code):
     """Convert C++ code to Java code."""
-    
-    # Handle specific patterns first
-    java_code = convert_curl_and_json(cpp_code)
+    cpp_code = convert_curl_to_java(cpp_code)
+    cpp_code = convert_json_to_java(cpp_code)
 
-    # Generate Java code from the model for simpler constructs
-    prompt = (
-        "You are a programming assistant. "
-        "Convert the following C++ code to Java code, handling basic constructs:\n"
-        f"{java_code}\n"
-        "Java code:"
-    )
-    
-    inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
-    output_sequences = incoder_model.generate(
-        inputs['input_ids'], 
-        attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500
-    )
-    
-    java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+    # Clean up any unnecessary C++ specific constructs
+    cpp_code = re.sub(r'#include.*\n', '', cpp_code)  # Remove includes
+    cpp_code = re.sub(r'std::string', 'String', cpp_code)
+    cpp_code = re.sub(r'std::cout', 'System.out.println', cpp_code)
 
-    return java_code
+    return cpp_code
 
 def main():
     """Main function to run the Streamlit app."""
