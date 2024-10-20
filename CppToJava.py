@@ -67,6 +67,14 @@ def main():
                     st.subheader("Generated Java Code:")
                     st.code(java_code, language='java')
 
+                    # Download button for the generated Java code
+                    st.download_button(
+                        label="Download Java Code",
+                        data=java_code,
+                        file_name="converted_code.java",
+                        mime="text/java"
+                    )
+
                     # Use CodeBERT for semantic understanding (optional)
                     java_embeddings = codebert_model.encode(java_code)
                     st.write(f"Java Code Embeddings: {java_embeddings[:5]}...")
