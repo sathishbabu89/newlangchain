@@ -1,5 +1,6 @@
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
 import re
 import time
 
@@ -10,6 +11,8 @@ incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 # Check and set the padding token
 if incoder_tokenizer.pad_token is None:
     incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+codebert_model = SentenceTransformer('microsoft/codebert-base')
 
 def read_cpp_file(uploaded_file):
     """Read the uploaded C++ file and return its content as a string."""
@@ -27,53 +30,49 @@ def convert_cpp_to_java(cpp_code):
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=1000,  # Increase token limit to ensure complete code
-        no_repeat_ngram_size=2,  # Optional: Avoid repetitive sequences
-        early_stopping=True  # Optional: Stop when the task is complete
+        max_new_tokens=500
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
     if "Java code:" in java_code:
         java_code = java_code.split("Java code:")[-1].strip()
-
+    
     cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
-
+    
     return cleaned_java_code
 
-def fix_syntax_errors(java_code):
-    """Fix syntax errors in the Java code using the Incoder model."""
+def convert_java_to_springboot(java_code):
+    """Convert Java code to Java Spring Boot code using the Incoder model."""
     prompt = (
         "You are a programming assistant. "
-        "Fix any syntax errors in the following Java code:\n"
+        "Convert the following Java code to a Java Spring Boot application completely:\n"
         f"{java_code}\n"
-        "Corrected Java code:"
+        "Spring Boot code:"
     )
     inputs = incoder_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=1000,  # Increase token limit for corrected code
-        no_repeat_ngram_size=2,  # Optional: Prevent repetitive sequences
-        early_stopping=True  # Stop when complete
+        max_new_tokens=500
     )
     
-    corrected_java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
+    springboot_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
-    if "Corrected Java code:" in corrected_java_code:
-        corrected_java_code = corrected_java_code.split("Corrected Java code:")[-1].strip()
-
-    cleaned_corrected_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', corrected_java_code, flags=re.DOTALL).strip()
-
-    return cleaned_corrected_code
+    if "Spring Boot code:" in springboot_code:
+        springboot_code = springboot_code.split("Spring Boot code:")[-1].strip()
+    
+    cleaned_springboot_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', springboot_code, flags=re.DOTALL).strip()
+    
+    return cleaned_springboot_code
 
 def main():
     """Main function to run the Streamlit app."""
-    st.set_page_config(page_title="C++ to Java Converter with Error Fixing", layout="wide")
-    st.title("C++ to Java Converter with Syntax Fixing")
+    st.set_page_config(page_title="C++ to Java Spring Boot Converter", layout="wide")
+    st.title("C++ to Java Spring Boot Converter")
 
     st.sidebar.header("Options")
-    st.sidebar.info("Upload your C++ code file to convert it to Java.")
+    st.sidebar.info("Upload your C++ code file to convert it to Java and then to Java Spring Boot.")
 
     uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
     
@@ -82,44 +81,48 @@ def main():
         st.subheader("Uploaded C++ Code:")
         st.code(cpp_code, language='cpp')
 
-        # Convert C++ to Java
-        if st.button("Convert C++ to Java"):
-            with st.spinner("Converting C++ to Java..."):
+        # Convert C++ to Java and then to Spring Boot
+        if st.button("Convert C++ to Java Spring Boot"):
+            with st.spinner("Converting..."):
                 progress_bar = st.progress(0)  # Initialize progress bar
-                time.sleep(1)
-                progress_bar.progress(30)  # Conversion in progress
+                time.sleep(1)  # Simulate waiting time
+                progress_bar.progress(30)  # Update progress: C++ to Java conversion
 
                 try:
-                    # Perform C++ to Java conversion
+                    # Step 1: Convert C++ to Java
                     java_code = convert_cpp_to_java(cpp_code)
                     st.success("Java code converted successfully!")
                     st.subheader("Generated Java Code:")
                     st.code(java_code, language='java')
 
-                    progress_bar.progress(50)  # Java code generated, now fixing syntax errors
-                    
-                    # Inform the user that the code is being revised for errors
-                    st.info("Revising the code to fix any syntax errors...")
+                    progress_bar.progress(60)  # Update progress: Java to Spring Boot conversion
 
-                    # Fix syntax errors in the generated Java code
-                    corrected_code = fix_syntax_errors(java_code)
-                    time.sleep(2)  # Simulating delay during syntax fixing
-                    progress_bar.progress(100)  # Syntax fixing completed
+                    # Step 2: Convert Java to Spring Boot
+                    springboot_code = convert_java_to_springboot(java_code)
+                    progress_bar.progress(100)  # Complete the progress
 
-                    st.success("Syntax errors fixed!")
-                    st.subheader("Revised Java Code (Syntax Errors Fixed):")
-                    st.code(corrected_code, language='java')
+                    st.success("Java Spring Boot code generated successfully!")
+                    st.subheader("Generated Java Spring Boot Code:")
+                    st.code(springboot_code, language='java')
 
-                    # Download button for the corrected Java code
+                    # Download button for the generated Spring Boot code
                     st.download_button(
-                        label="Download Revised Java Code",
-                        data=corrected_code,
-                        file_name="revised_code.java",
+                        label="Download Spring Boot Code",
+                        data=springboot_code,
+                        file_name="springboot_code.java",
                         mime="text/java"
                     )
 
                 except Exception as e:
-                    st.error(f"Error during conversion or revision: {e}")
+                    st.error(f"Error during conversion: {e}")
+
+    # Expander for additional information
+    with st.expander("Help & Tips", expanded=False):
+        st.write("""
+        - **Step 1**: Upload your C++ file.
+        - **Step 2**: Click on the 'Convert C++ to Java Spring Boot' button.
+        - **Step 3**: Download the converted Java Spring Boot code using the provided button.
+        """)
 
 if __name__ == "__main__":
     main()
