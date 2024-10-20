@@ -56,9 +56,11 @@ def main():
         st.code(cpp_code, language='cpp')
 
         # Convert C++ to Java
-        if st.button("Convert C++ to Java"):
+        if st.button("Start Conversion"):
+              with st.spinner("Converting..."):
             try:
                 java_code = convert_cpp_to_java(cpp_code)
+                st.success("Conversion completed!")
                 st.subheader("Generated Java Code:")
                 st.code(java_code, language='java')
 
