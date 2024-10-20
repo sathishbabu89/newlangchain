@@ -27,14 +27,16 @@ def convert_cpp_to_java(cpp_code):
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500
+        max_new_tokens=1000,  # Increase token limit to ensure complete code
+        no_repeat_ngram_size=2,  # Optional: Avoid repetitive sequences
+        early_stopping=True  # Optional: Stop when the task is complete
     )
     
     java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
 
     if "Java code:" in java_code:
         java_code = java_code.split("Java code:")[-1].strip()
-    
+
     cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
 
     return cleaned_java_code
@@ -51,7 +53,9 @@ def fix_syntax_errors(java_code):
     output_sequences = incoder_model.generate(
         inputs['input_ids'], 
         attention_mask=inputs['attention_mask'], 
-        max_new_tokens=500
+        max_new_tokens=1000,  # Increase token limit for corrected code
+        no_repeat_ngram_size=2,  # Optional: Prevent repetitive sequences
+        early_stopping=True  # Stop when complete
     )
     
     corrected_java_code = incoder_tokenizer.decode(output_sequences[0], skip_special_tokens=True).strip()
