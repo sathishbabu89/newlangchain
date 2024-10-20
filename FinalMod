@@ -11,8 +11,8 @@ incoder_model = AutoModelForCausalLM.from_pretrained("facebook/incoder-1B")
 if incoder_tokenizer.pad_token is None:
     incoder_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
-def read_file(uploaded_file):
-    """Read the uploaded file (C++ or Java) and return its content as a string."""
+def read_cpp_file(uploaded_file):
+    """Read the uploaded C++ file and return its content as a string."""
     return uploaded_file.read().decode("utf-8")
 
 def convert_cpp_to_java(cpp_code):
@@ -34,7 +34,7 @@ def convert_cpp_to_java(cpp_code):
 
     if "Java code:" in java_code:
         java_code = java_code.split("Java code:")[-1].strip()
-
+    
     cleaned_java_code = re.sub(r'<\/?code.*|<\|.*|\bThanks for your answer\b.*', '', java_code, flags=re.DOTALL).strip()
 
     return cleaned_java_code
@@ -69,58 +69,53 @@ def main():
     st.title("C++ to Java Converter with Syntax Fixing")
 
     st.sidebar.header("Options")
-    st.sidebar.info("Upload your C++ or Java code files for conversion and fixing.")
+    st.sidebar.info("Upload your C++ code file to convert it to Java.")
 
-    # First part: Convert C++ to Java
     uploaded_file = st.file_uploader("Choose a C++ file", type=["cpp", "h", "hpp"])
     
     if uploaded_file is not None:
-        cpp_code = read_file(uploaded_file)
+        cpp_code = read_cpp_file(uploaded_file)
         st.subheader("Uploaded C++ Code:")
         st.code(cpp_code, language='cpp')
 
         # Convert C++ to Java
         if st.button("Convert C++ to Java"):
-            with st.spinner("Converting..."):
-                java_code = convert_cpp_to_java(cpp_code)
-                st.success("Conversion completed!")
-                st.subheader("Generated Java Code:")
-                st.code(java_code, language='java')
+            with st.spinner("Converting C++ to Java..."):
+                progress_bar = st.progress(0)  # Initialize progress bar
+                time.sleep(1)
+                progress_bar.progress(30)  # Conversion in progress
 
-                # Download button for the generated Java code
-                st.download_button(
-                    label="Download Java Code",
-                    data=java_code,
-                    file_name="converted_code.java",
-                    mime="text/java"
-                )
+                try:
+                    # Perform C++ to Java conversion
+                    java_code = convert_cpp_to_java(cpp_code)
+                    st.success("Java code converted successfully!")
+                    st.subheader("Generated Java Code:")
+                    st.code(java_code, language='java')
 
-    # Second part: Fix syntax errors in Java code
-    st.write("---")
-    st.subheader("Upload Java File to Fix Syntax Errors")
-    
-    uploaded_java_file = st.file_uploader("Choose a Java file", type=["java"], key="java_file")
-    
-    if uploaded_java_file is not None:
-        java_code = read_file(uploaded_java_file)
-        st.subheader("Uploaded Java Code:")
-        st.code(java_code, language='java')
+                    progress_bar.progress(50)  # Java code generated, now fixing syntax errors
+                    
+                    # Inform the user that the code is being revised for errors
+                    st.info("Revising the code to fix any syntax errors...")
 
-        # Fix syntax errors
-        if st.button("Fix Syntax Errors"):
-            with st.spinner("Fixing errors..."):
-                fixed_code = fix_syntax_errors(java_code)
-                st.success("Syntax errors fixed!")
-                st.subheader("Corrected Java Code:")
-                st.code(fixed_code, language='java')
+                    # Fix syntax errors in the generated Java code
+                    corrected_code = fix_syntax_errors(java_code)
+                    time.sleep(2)  # Simulating delay during syntax fixing
+                    progress_bar.progress(100)  # Syntax fixing completed
 
-                # Download button for the corrected Java code
-                st.download_button(
-                    label="Download Corrected Java Code",
-                    data=fixed_code,
-                    file_name="corrected_code.java",
-                    mime="text/java"
-                )
+                    st.success("Syntax errors fixed!")
+                    st.subheader("Revised Java Code (Syntax Errors Fixed):")
+                    st.code(corrected_code, language='java')
+
+                    # Download button for the corrected Java code
+                    st.download_button(
+                        label="Download Revised Java Code",
+                        data=corrected_code,
+                        file_name="revised_code.java",
+                        mime="text/java"
+                    )
+
+                except Exception as e:
+                    st.error(f"Error during conversion or revision: {e}")
 
 if __name__ == "__main__":
     main()
