@@ -15,101 +15,96 @@ logger = logging.getLogger(__name__)
 
 HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
 
+# Ensure the API token is provided before invoking the LLM
+if not HUGGINGFACE_API_TOKEN:
+    st.error("Please set the Hugging Face API token.")
+
 st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 st.header("C++ to Java Conversion Tool with LLM 💻")
 
+# Initialize vector_store in session_state
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
+# File upload in the sidebar
 with st.sidebar:
     st.title("Upload Your C++ Code")
     file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
 
-    if file is not None:
-        try:
-            code_content = file.read().decode("utf-8")
-            st.subheader("Code Preview")
-            st.text(code_content[:5000])  # Preview the first 5000 characters of code
-        except Exception as e:
-            logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-            st.warning("Unable to display code preview.")
+# File preview logic
+if file is not None:
+    try:
+        code_content = file.read().decode("utf-8")
+        st.subheader("Code Preview")
+        st.text(code_content[:5000])  # Preview the first 5000 characters of code
+    except Exception as e:
+        logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
+        st.warning("Unable to display code preview.")
 
+# Code conversion logic
 if file is not None:
     if st.session_state.vector_store is None:
         try:
             with st.spinner("Processing and converting code..."):
+                
+                # Split the text into chunks
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=500,
+                    chunk_overlap=50
+                )
+                chunks = text_splitter.split_text(code_content)
 
-                # Function to extract code summaries using regex (structure)
-                def extract_summary(code):
-                    # Using regex to identify function definitions, classes, etc.
-                    function_pattern = r'\w+\s+\w+\s*\([^)]*\)\s*{'
-                    functions = re.findall(function_pattern, code)
+                embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
+                )
 
-                    # Example: Identify class declarations
-                    class_pattern = r'class\s+\w+\s*{'
-                    classes = re.findall(class_pattern, code)
+                st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
 
-                    summary = []
-                    if functions:
-                        summary.append("Functions identified in the code:")
-                        summary.extend(functions)
-                    if classes:
-                        summary.append("\nClasses identified in the code:")
-                        summary.extend(classes)
+                # Load the LLM for code conversion
+                llm = HuggingFaceEndpoint(
+                    repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                    max_new_tokens=2048,  # Increased token limit for longer output
+                    top_k=10,
+                    top_p=0.95,
+                    typical_p=0.95,
+                    temperature=0.01,
+                    repetition_penalty=1.03,
+                    huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+                )
 
-                    return summary
+                try:
+                    # Prompt to convert C++ to Java Spring Boot
+                    prompt = f"""
+Convert the following C++ code snippet into equivalent Java Spring Boot code. Ensure that the translated code:
 
-                # Get basic structure summary
-                code_summary = extract_summary(code_content)
+1. Adheres to Java Spring Boot conventions, including proper use of annotations (e.g., @RestController, @Service, @Repository).
+2. Follows best practices in Java, such as meaningful class and method names, use of proper access modifiers (e.g., private, public), and exception handling.
+3. Includes the necessary imports, such as `org.springframework.web.bind.annotation`, `org.springframework.beans.factory.annotation.Autowired`, and other relevant Spring Boot components.
+4. Uses Spring Boot components appropriately, such as:
+   - Controllers for handling HTTP requests.
+   - Services for business logic.
+   - Repositories for database interaction (if applicable).
+5. Converts any C++ I/O operations into their Java Spring Boot equivalents (e.g., handling HTTP requests/responses).
+6. If the C++ code involves threading, synchronization, or concurrency, implement them using Java’s `ExecutorService`, `CompletableFuture`, or other Java concurrency utilities.
+7. Includes comments where necessary to explain complex logic and ensure maintainability.
+8. Adds any additional dependencies or configuration required (e.g., instructions for `pom.xml` or `application.properties` for Spring Boot).
 
-                if not code_summary:
-                    st.warning("No functions, classes, or critical logic found in the code.")
-                else:
-                    # Use LLM to generate detailed Java conversion
-                    text_splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=500,
-                        chunk_overlap=50
-                    )
-                    chunks = text_splitter.split_text(code_content)
+Please ensure that the core logic and functionality of the original C++ code remain intact in the translated Java Spring Boot code.
 
-                    embeddings = HuggingFaceEmbeddings(
-                        model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
-                    )
+Here is the C++ code snippet to convert:
 
-                    st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
+{code_content}
+"""
+                    # Call the LLM to convert the code
+                    response = llm.invoke(prompt)
 
-                    # Load the LLM for code conversion
-                    llm = HuggingFaceEndpoint(
-                        repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                        max_new_tokens=2048,  # Increased token limit for longer output
-                        top_k=10,
-                        top_p=0.95,
-                        typical_p=0.95,
-                        temperature=0.01,
-                        repetition_penalty=1.03,
-                        huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-                    )
+                    # Assuming the response is a string, display it directly
+                    st.code(response, language='java')
 
-                    # Combine structural and LLM-based logic analysis
-                    st.success("Code processed successfully!")
-
-                    st.subheader("Code Structure Summary")
-                    for section in code_summary:
-                        st.markdown(f"- {section}")
-
-                    st.subheader("Converted Java Code")
-                    with st.spinner("Generating Java code..."):
-                        try:
-                            # Prompt to convert C++ to Java
-                            prompt = f"Convert the following C++ code to equivalent Java code:\n\n{code_content}"
-                            response = llm.invoke(prompt)
-
-                            # Assuming the response is a string, display it directly
-                            st.code(response, language='java')
-
-                        except Exception as e:
-                            logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
-                            st.error("Unable to convert C++ code to Java.")
+                except Exception as e:
+                    logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
+                    st.error("Unable to convert C++ code to Java.")
+                    
         except Exception as e:
             logger.error(f"An error occurred while processing the code: {e}", exc_info=True)
             st.error(str(e))
