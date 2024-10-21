@@ -34,16 +34,13 @@ with st.sidebar:
         if file is not None:
             try:
                 code_content = file.read().decode("utf-8")
-                st.subheader("C++ Code Preview (Editable)")
-                
-                # Step 1: Add a text area for real-time modification of the uploaded C++ code
-                edited_code = st.text_area("Modify C++ code before conversion:", value=code_content, height=400)
-
+                st.subheader("C++ Code Preview")
+                st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
             except Exception as e:
                 logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
                 st.warning("Unable to display code preview.")
 
-# Code conversion logic with real-time updates
+# Code conversion logic
 if file is not None:
     if st.session_state.vector_store is None:
         try:
@@ -58,12 +55,12 @@ if file is not None:
                 progress_bar.progress(progress_stage)
                 st.info("Step 1: Splitting the code into chunks...")
                 
-                # Split the modified text into chunks
+                # Split the text into chunks
                 text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=500,
                     chunk_overlap=50
                 )
-                chunks = text_splitter.split_text(edited_code)
+                chunks = text_splitter.split_text(code_content)
 
                 # Stage 2: Creating embeddings (40% progress)
                 progress_stage += 20
@@ -71,7 +68,7 @@ if file is not None:
                 st.info("Step 2: Generating embeddings...")
 
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                    model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
                 )
 
                 st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
@@ -117,7 +114,7 @@ Convert the following C++ code snippet into equivalent Java Spring Boot code. En
 
 Here is the C++ code snippet to convert:
 
-{edited_code}  # Use the real-time updated code content
+{code_content}
 """
                     # Call the LLM to convert the code
                     response = llm.invoke(prompt)
