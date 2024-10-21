@@ -22,6 +22,34 @@ if not HUGGINGFACE_API_TOKEN:
 st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 st.header("C++ to Java Conversion Tool with LLM 💻")
 
+# Theme customization options
+theme_option = st.sidebar.selectbox("Select Theme", ["Light", "Dark"])
+
+if theme_option == "Dark":
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #1e1e1e;
+            color: white;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #ffffff;
+            color: black;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # Initialize vector_store in session_state
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
@@ -88,7 +116,7 @@ if file is not None:
                 st.info("Step 2: Generating embeddings... 📊")
 
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
 
                 st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
