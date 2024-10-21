@@ -59,7 +59,6 @@ with st.sidebar:
         - **How can I ensure the converted code is error-free?**
           After conversion, carefully review the Java code, and test it thoroughly. Look for any syntactic or semantic errors.
         """)
-        
 
 # Code conversion logic
 if file is not None:
@@ -74,7 +73,7 @@ if file is not None:
                 # Stage 1: Splitting text into chunks (20% progress)
                 progress_stage += 20
                 progress_bar.progress(progress_stage)
-                st.info("Step 1: Splitting the code into chunks...")
+                st.info("Step 1: Splitting the code into chunks... 💬")
                 
                 # Split the text into chunks
                 text_splitter = RecursiveCharacterTextSplitter(
@@ -86,7 +85,7 @@ if file is not None:
                 # Stage 2: Creating embeddings (40% progress)
                 progress_stage += 20
                 progress_bar.progress(progress_stage)
-                st.info("Step 2: Generating embeddings...")
+                st.info("Step 2: Generating embeddings... 📊")
 
                 embeddings = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
@@ -97,7 +96,7 @@ if file is not None:
                 # Stage 3: LLM initialization (60% progress)
                 progress_stage += 20
                 progress_bar.progress(progress_stage)
-                st.info("Step 3: Loading the language model...")
+                st.info("Step 3: Loading the language model... 🚀")
 
                 # Load the LLM for code conversion
                 llm = HuggingFaceEndpoint(
@@ -115,7 +114,7 @@ if file is not None:
                     # Stage 4: Code conversion (80% progress)
                     progress_stage += 20
                     progress_bar.progress(progress_stage)
-                    st.info("Step 4: Converting C++ to Java Spring Boot...")
+                    st.info("Step 4: Converting C++ to Java Spring Boot... 🔄")
 
                     # Prompt to convert C++ to Java Spring Boot
                     prompt = f"""
@@ -143,7 +142,7 @@ Here is the C++ code snippet to convert:
                     # Stage 5: Displaying converted code (100% progress)
                     progress_stage += 20
                     progress_bar.progress(progress_stage)
-                    st.success("Step 5: Conversion complete!")
+                    st.success("Step 5: Conversion complete! 🎉")
                     
                     # Display the converted Java code
                     st.code(response, language='java')
