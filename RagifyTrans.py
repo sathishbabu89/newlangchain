@@ -26,19 +26,19 @@ st.header("C++ to Java Conversion Tool with LLM 💻")
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
-# File upload in the sidebar
+# Collapsible sidebar
 with st.sidebar:
-    st.title("Upload Your C++ Code")
-    file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
-
-    if file is not None:
-        try:
-            code_content = file.read().decode("utf-8")
-            st.subheader("C++ Code Preview")
-            st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
-        except Exception as e:
-            logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-            st.warning("Unable to display code preview.")
+    with st.expander("Upload Your C++ Code", expanded=True):  # Expanded by default
+        file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
+        
+        if file is not None:
+            try:
+                code_content = file.read().decode("utf-8")
+                st.subheader("C++ Code Preview")
+                st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
+            except Exception as e:
+                logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
+                st.warning("Unable to display code preview.")
 
 # Code conversion logic
 if file is not None:
@@ -68,7 +68,7 @@ if file is not None:
                 st.info("Step 2: Generating embeddings...")
 
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
 
                 st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
@@ -132,6 +132,14 @@ Here is the C++ code snippet to convert:
                         st.warning("The converted Java code may contain syntax or structural errors. Please review it carefully.")
                     else:
                         st.success("The Java code is free from basic syntax errors!")
+
+                    # Implementing the downloadable file feature
+                    st.download_button(
+                        label="Download Java Code",
+                        data=response,
+                        file_name="converted_code.java",
+                        mime="text/x-java-source"
+                    )
                     
                 except Exception as e:
                     logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
