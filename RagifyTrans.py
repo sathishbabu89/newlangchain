@@ -127,6 +127,12 @@ Here is the C++ code snippet to convert:
                     # Display the converted Java code
                     st.code(response, language='java')
 
+                    # Basic error-checking logic
+                    if re.search(r'\berror\b|\bexception\b|\bsyntax\b|\bmissing\b', response.lower()):
+                        st.warning("The converted Java code may contain syntax or structural errors. Please review it carefully.")
+                    else:
+                        st.success("The Java code is free from basic syntax errors!")
+                    
                 except Exception as e:
                     logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
                     st.error("Unable to convert C++ code to Java.")
