@@ -31,15 +31,14 @@ with st.sidebar:
     st.title("Upload Your C++ Code")
     file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
 
-# File preview logic
-if file is not None:
-    try:
-        code_content = file.read().decode("utf-8")
-        st.subheader("Code Preview")
-        st.text(code_content[:5000])  # Preview the first 5000 characters of code
-    except Exception as e:
-        logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-        st.warning("Unable to display code preview.")
+    if file is not None:
+            try:
+                code_content = file.read().decode("utf-8")
+                st.subheader("C++ Code Preview")
+                st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
+            except Exception as e:
+                logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
+                st.warning("Unable to display code preview.")
 
 # Code conversion logic
 if file is not None:
