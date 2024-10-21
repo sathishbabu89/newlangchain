@@ -32,19 +32,28 @@ with st.sidebar:
     file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
 
     if file is not None:
-            try:
-                code_content = file.read().decode("utf-8")
-                st.subheader("C++ Code Preview")
-                st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
-            except Exception as e:
-                logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-                st.warning("Unable to display code preview.")
+        try:
+            code_content = file.read().decode("utf-8")
+            st.subheader("C++ Code Preview")
+            st.code(code_content[:5000], language='cpp')  # Display the C++ code with proper syntax highlighting
+        except Exception as e:
+            logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
+            st.warning("Unable to display code preview.")
 
 # Code conversion logic
 if file is not None:
     if st.session_state.vector_store is None:
         try:
+            # Initialize the progress bar
+            progress_bar = st.progress(0)
+            progress_stage = 0
+
             with st.spinner("Processing and converting code..."):
+
+                # Stage 1: Splitting text into chunks (20% progress)
+                progress_stage += 20
+                progress_bar.progress(progress_stage)
+                st.info("Step 1: Splitting the code into chunks...")
                 
                 # Split the text into chunks
                 text_splitter = RecursiveCharacterTextSplitter(
@@ -53,11 +62,21 @@ if file is not None:
                 )
                 chunks = text_splitter.split_text(code_content)
 
+                # Stage 2: Creating embeddings (40% progress)
+                progress_stage += 20
+                progress_bar.progress(progress_stage)
+                st.info("Step 2: Generating embeddings...")
+
                 embeddings = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
                 )
 
                 st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
+
+                # Stage 3: LLM initialization (60% progress)
+                progress_stage += 20
+                progress_bar.progress(progress_stage)
+                st.info("Step 3: Loading the language model...")
 
                 # Load the LLM for code conversion
                 llm = HuggingFaceEndpoint(
@@ -72,6 +91,11 @@ if file is not None:
                 )
 
                 try:
+                    # Stage 4: Code conversion (80% progress)
+                    progress_stage += 20
+                    progress_bar.progress(progress_stage)
+                    st.info("Step 4: Converting C++ to Java Spring Boot...")
+
                     # Prompt to convert C++ to Java Spring Boot
                     prompt = f"""
 Convert the following C++ code snippet into equivalent Java Spring Boot code. Ensure that the translated code:
@@ -88,8 +112,6 @@ Convert the following C++ code snippet into equivalent Java Spring Boot code. En
 7. Includes comments where necessary to explain complex logic and ensure maintainability.
 8. Adds any additional dependencies or configuration required (e.g., instructions for `pom.xml` or `application.properties` for Spring Boot).
 
-Please ensure that the core logic and functionality of the original C++ code remain intact in the translated Java Spring Boot code.
-
 Here is the C++ code snippet to convert:
 
 {code_content}
@@ -97,7 +119,12 @@ Here is the C++ code snippet to convert:
                     # Call the LLM to convert the code
                     response = llm.invoke(prompt)
 
-                    # Assuming the response is a string, display it directly
+                    # Stage 5: Displaying converted code (100% progress)
+                    progress_stage += 20
+                    progress_bar.progress(progress_stage)
+                    st.success("Step 5: Conversion complete!")
+                    
+                    # Display the converted Java code
                     st.code(response, language='java')
 
                 except Exception as e:
