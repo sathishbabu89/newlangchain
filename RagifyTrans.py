@@ -26,7 +26,7 @@ st.header("C++ to Java Conversion Tool with LLM 💻")
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
-# Collapsible sidebar
+# Collapsible sidebar for uploading code and tutorials
 with st.sidebar:
     with st.expander("Upload Your C++ Code", expanded=True):  # Expanded by default
         file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
@@ -39,6 +39,27 @@ with st.sidebar:
             except Exception as e:
                 logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
                 st.warning("Unable to display code preview.")
+
+    # Tutorials or Tips Section
+    with st.expander("Tutorials & Tips", expanded=True):
+        st.write("""
+        ### Welcome to the C++ to Java Conversion Tool!
+        
+        Here are some tips to help you use this tool effectively:
+
+        - **Code Formatting:** Ensure your C++ code is properly formatted and follows standard conventions for better conversion results.
+        - **Chunking:** If your C++ code is too large, consider breaking it into smaller files for easier processing.
+        - **Annotations:** When converting to Java Spring Boot, remember to include necessary annotations such as `@RestController` for controllers.
+        - **Testing:** After conversion, test the Java code in your development environment to ensure it works as expected.
+        - **Refer to Documentation:** Familiarize yourself with both C++ and Java Spring Boot documentation for best practices in coding.
+        
+        ### Frequently Asked Questions (FAQs):
+        - **What types of C++ code can be converted?**
+          This tool can handle various C++ constructs, but complex libraries and system-level code might require manual adjustments.
+        - **How can I ensure the converted code is error-free?**
+          After conversion, carefully review the Java code, and test it thoroughly. Look for any syntactic or semantic errors.
+        """)
+        
 
 # Code conversion logic
 if file is not None:
