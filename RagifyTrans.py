@@ -178,32 +178,13 @@ Here is the C++ code:
                         st.subheader("Business Logic Explanation")
                         st.write(response_business_logic)
 
-                    # Button for execution instructions
-                    if st.button("Execute"):
-                        st.info("Providing instructions for running the code...")
+                except Exception as e:
+                    logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
+                    st.error("Unable to convert C++ code to Java.")
+                    
+        except Exception as e:
+            logger.error(f"An error occurred while processing the code: {e}", exc_info=True)
+            st.error(str(e))
 
-                        st.write("""
-                        ### Instructions for Running Java Spring Boot Code
-                        
-                        Here are the steps to run the converted Java Spring Boot code in popular IDEs:
-
-                        #### Spring Tool Suite (STS):
-                        1. **Download STS**: Ensure you have [Spring Tool Suite](https://spring.io/tools) installed.
-                        2. **Create a New Spring Boot Project**:
-                            - Go to `File -> New -> Spring Starter Project`.
-                            - Fill in the project details like name, group, and package.
-                            - Add the required Spring Boot dependencies (Web, JPA, etc.).
-                        3. **Add the Converted Code**: 
-                            - Copy the converted code into the appropriate package under `src/main/java`.
-                            - Ensure the `@RestController` and other components are in place.
-                        4. **Run the Project**: 
-                            - Right-click the project and select `Run As -> Spring Boot App`.
-                            - The Spring Boot application should start, and you can access it via `http://localhost:8080`.
-
-                        #### IntelliJ IDEA:
-                        1. **Download IntelliJ IDEA**: Ensure you have [IntelliJ IDEA](https://www.jetbrains.com/idea/download/) installed.
-                        2. **Create a New Spring Boot Project**:
-                            - Go to `File -> New -> Project`.
-                            - Select `Spring Initializr` and configure the project.
-                            - Add the necessary Spring Boot dependencies (Web, JPA, etc.).
-                        3. **Add the Converted Code**
+else:
+    st.info("Please upload a C++ code file to start analyzing.")
