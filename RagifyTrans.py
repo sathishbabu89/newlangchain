@@ -28,25 +28,23 @@ if 'vector_store' not in st.session_state:
 
 # Collapsible sidebar
 with st.sidebar:
-    with st.expander("Upload or Input Your C++ Code", expanded=True):  # Expanded by default
-        input_method = st.radio("Select input method:", ("Upload C++ File", "Manual Input"))
+    with st.expander("Upload Your C++ Code", expanded=True):  # Expanded by default
+        file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
         
-        if input_method == "Upload C++ File":
-            file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
-            code_content = ""
-            if file is not None:
-                try:
-                    code_content = file.read().decode("utf-8")
-                    st.subheader("C++ Code Preview (Editable)")
-                    code_content = st.text_area("Modify C++ code before conversion:", value=code_content, height=400)
-                except Exception as e:
-                    logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-                    st.warning("Unable to display code preview.")
-        else:
-            code_content = st.text_area("Input your C++ code here:", height=400)
+        if file is not None:
+            try:
+                code_content = file.read().decode("utf-8")
+                st.subheader("C++ Code Preview (Editable)")
+                
+                # Step 1: Add a text area for real-time modification of the uploaded C++ code
+                edited_code = st.text_area("Modify C++ code before conversion:", value=code_content, height=400)
+
+            except Exception as e:
+                logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
+                st.warning("Unable to display code preview.")
 
 # Code conversion logic with real-time updates
-if code_content:
+if file is not None:
     if st.session_state.vector_store is None:
         try:
             # Initialize the progress bar
@@ -65,7 +63,7 @@ if code_content:
                     chunk_size=500,
                     chunk_overlap=50
                 )
-                chunks = text_splitter.split_text(code_content)
+                chunks = text_splitter.split_text(edited_code)
 
                 # Stage 2: Creating embeddings (40% progress)
                 progress_stage += 20
@@ -73,7 +71,7 @@ if code_content:
                 st.info("Step 2: Generating embeddings...")
 
                 embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
 
                 st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
@@ -119,7 +117,7 @@ Convert the following C++ code snippet into equivalent Java Spring Boot code. En
 
 Here is the C++ code snippet to convert:
 
-{code_content}  # Use the real-time updated code content
+{edited_code}  # Use the real-time updated code content
 """
                     # Call the LLM to convert the code
                     response = llm.invoke(prompt)
@@ -155,4 +153,4 @@ Here is the C++ code snippet to convert:
             st.error(str(e))
 
 else:
-    st.info("Please upload a C++ code file or input code to start analyzing.")
+    st.info("Please upload a C++ code file to start analyzing.")
