@@ -134,11 +134,12 @@ if page == "File Upload Converter":
 
     if file is not None:
         if st.button("Convert C++ to Java Spring Boot"):
+            # Initialize progress bar and message if not already set
             if "progress_bar" not in st.session_state:
-                st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+                st.session_state.progress_bar = st.progress(0)
             if "progress_message" not in st.session_state:
-                st.session_state.progress_message = ""
-                
+                st.session_state.progress_message = "Starting conversion..."
+
             with st.spinner("Processing..."):
                 with ThreadPoolExecutor() as executor:
                     future = executor.submit(run_conversion, code_content, file.name, HUGGINGFACE_API_TOKEN)
@@ -173,11 +174,12 @@ if page == "Inline Code Converter":
     cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
     
     if cpp_code_input and st.button("Convert to Java"):
+        # Initialize progress bar and message if not already set
         if "progress_bar" not in st.session_state:
-            st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+            st.session_state.progress_bar = st.progress(0)
         if "progress_message" not in st.session_state:
-            st.session_state.progress_message = ""
-            
+            st.session_state.progress_message = "Starting conversion..."
+
         with st.spinner("Processing..."):
             with ThreadPoolExecutor() as executor:
                 future = executor.submit(run_conversion, cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
