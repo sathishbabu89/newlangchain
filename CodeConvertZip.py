@@ -89,12 +89,22 @@ Here is the C++ code snippet:
                 if current_class:
                     components[current_class].append(line)
 
+            # Create downloadable files for each component
+            for class_name, class_lines in components.items():
+                class_code = "\n".join(class_lines)
+                st.download_button(
+                    label=f"Download {class_name}.java",
+                    data=class_code,
+                    file_name=f"{class_name}.java",
+                    mime="text/x-java-source"
+                )
+
             # Create a zip file in memory
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                 for class_name, class_lines in components.items():
                     class_code = "\n".join(class_lines)
-                    # Save the class code to the zip file
+                    # Save the class code to the zip file with correct naming
                     zip_file.writestr(f"{class_name}.java", class_code)
 
             zip_buffer.seek(0)  # Move to the beginning of the BytesIO buffer
