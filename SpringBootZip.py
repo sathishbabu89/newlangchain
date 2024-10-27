@@ -109,6 +109,14 @@ Here is the C++ code snippet:
                     for class_name, class_lines in components.items():
                         class_code = "\n".join(class_lines)
                         zip_file.writestr(f"src/main/java/{class_name}.java", class_code)
+                        
+                        # Individual download for each class
+                        st.download_button(
+                            label=f"Download {class_name}.java",
+                            data=class_code,
+                            file_name=f"{class_name}.java",
+                            mime="text/x-java-source"
+                        )
 
                     # Add Spring Boot project zip content
                     zip_file.writestr("spring-boot-project.zip", spring_boot_project)
