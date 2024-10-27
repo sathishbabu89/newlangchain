@@ -105,6 +105,7 @@ Here is the C++ code snippet:
                 # Create a zip buffer for the final download
                 zip_buffer = io.BytesIO()
                 zip_filename = filename.rsplit('.', 1)[0] + '.zip'
+                
                 with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                     # Save each converted Java class to the zip file with the correct package structure
                     package_path = project_info['packageName'].replace('.', '/')
@@ -112,8 +113,8 @@ Here is the C++ code snippet:
                         class_code = "\n".join(class_lines)
                         zip_file.writestr(f"src/main/java/{package_path}/{class_name}.java", class_code)
 
-                # Add Spring Boot project zip content
-                zip_file.writestr("spring-boot-project.zip", spring_boot_project)
+                    # Add Spring Boot project zip content
+                    zip_file.writestr("spring-boot-project.zip", spring_boot_project)
 
                 zip_buffer.seek(0)  # Move to the beginning of the BytesIO buffer
 
