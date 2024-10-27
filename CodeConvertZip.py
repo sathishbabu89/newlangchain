@@ -26,37 +26,42 @@ st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 page = st.sidebar.selectbox("Choose Page", ["File Upload Converter", "Inline Code Converter"])
 
 def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
-    progress = {"stage": 0, "message": "Starting conversion..."}
-
+    progress_messages = [
+        "Starting conversion...",
+        "Splitting the code into chunks...",
+        "Generating embeddings...",
+        "Loading the language model...",
+        "Converting C++ to Java Spring Boot..."
+    ]
+    
     try:
-        progress["message"] = "Splitting the code into chunks..."
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        chunks = text_splitter.split_text(cpp_code)
+        for i, message in enumerate(progress_messages):
+            st.session_state.progress_bar.progress((i + 1) * 20)
+            st.session_state.progress_message = message
+            st.experimental_rerun()  # Update the UI
 
-        progress["stage"] += 20
+            if i == 0:  # Step 1
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+                chunks = text_splitter.split_text(cpp_code)
 
-        progress["message"] = "Generating embeddings..."
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_store = FAISS.from_texts(chunks, embeddings)
+            elif i == 1:  # Step 2
+                embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+                vector_store = FAISS.from_texts(chunks, embeddings)
 
-        progress["stage"] += 20
+            elif i == 2:  # Step 3
+                llm = HuggingFaceEndpoint(
+                    repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                    max_new_tokens=2048,
+                    top_k=10,
+                    top_p=0.95,
+                    typical_p=0.95,
+                    temperature=0.01,
+                    repetition_penalty=1.03,
+                    huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+                )
 
-        progress["message"] = "Loading the language model..."
-        llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-            max_new_tokens=2048,
-            top_k=10,
-            top_p=0.95,
-            typical_p=0.95,
-            temperature=0.01,
-            repetition_penalty=1.03,
-            huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-        )
-
-        progress["stage"] += 20
-
-        progress["message"] = "Converting C++ to Java Spring Boot..."
-        prompt = f"""
+            elif i == 3:  # Step 4
+                prompt = f"""
 Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers.
 Only generate a separate `Controller`, `Service`, and `Repository` if the C++ code includes logic for handling HTTP requests, database interactions, or business logic. If the code is simple (e.g., "Hello World"), convert it within a single `MainApplication` class.
 
@@ -64,10 +69,13 @@ Here is the C++ code snippet:
 
 {cpp_code}
 """
-        response = llm.invoke(prompt)
+                response = llm.invoke(prompt)
 
-        progress["stage"] += 20
-
+        # Final step
+        st.session_state.progress_bar.progress(100)
+        st.session_state.progress_message = "Conversion complete! 🎉"
+        st.experimental_rerun()  # Update the UI
+        
         components = {}
         lines = response.splitlines()
         current_class = None
@@ -128,10 +136,15 @@ if page == "File Upload Converter":
         if st.button("Convert C++ to Java Spring Boot"):
             if "progress_bar" not in st.session_state:
                 st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+            if "progress_message" not in st.session_state:
+                st.session_state.progress_message = ""
+                
             with st.spinner("Processing..."):
                 with ThreadPoolExecutor() as executor:
                     future = executor.submit(run_conversion, code_content, file.name, HUGGINGFACE_API_TOKEN)
                     response, components, zip_buffer, zip_filename = future.result()
+
+            st.success(st.session_state.progress_message)  # Show final message
 
             if response:
                 st.code(response, language='java')
@@ -162,10 +175,15 @@ if page == "Inline Code Converter":
     if cpp_code_input and st.button("Convert to Java"):
         if "progress_bar" not in st.session_state:
             st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+        if "progress_message" not in st.session_state:
+            st.session_state.progress_message = ""
+            
         with st.spinner("Processing..."):
             with ThreadPoolExecutor() as executor:
                 future = executor.submit(run_conversion, cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
                 response, components, zip_buffer, zip_filename = future.result()
+
+        st.success(st.session_state.progress_message)  # Show final message
 
         if response:
             st.code(response, language='java')
