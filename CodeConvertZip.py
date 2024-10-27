@@ -4,6 +4,7 @@ import re
 import torch
 import zipfile
 import io
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -25,45 +26,41 @@ st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 page = st.sidebar.selectbox("Choose Page", ["File Upload Converter", "Inline Code Converter"])
 
 def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
+    # This function will run in a separate thread
+    progress = {"stage": 0, "message": "Starting conversion..."}
+
     try:
-        progress_bar = st.progress(0)
-        progress_stage = 0
+        progress["message"] = "Splitting the code into chunks..."
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = text_splitter.split_text(cpp_code)
 
-        with st.spinner("Processing and converting code..."):
-            progress_stage += 20
-            progress_bar.progress(progress_stage)
-            st.info("Step 1: Splitting the code into chunks... 💬")
+        progress["stage"] += 20
+        st.session_state.progress_bar.progress(progress["stage"])
 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-            chunks = text_splitter.split_text(cpp_code)
+        progress["message"] = "Generating embeddings..."
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_store = FAISS.from_texts(chunks, embeddings)
 
-            progress_stage += 20
-            progress_bar.progress(progress_stage)
-            st.info("Step 2: Generating embeddings... 📊")
+        progress["stage"] += 20
+        st.session_state.progress_bar.progress(progress["stage"])
 
-            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-            vector_store = FAISS.from_texts(chunks, embeddings)
+        progress["message"] = "Loading the language model..."
+        llm = HuggingFaceEndpoint(
+            repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+            max_new_tokens=2048,
+            top_k=10,
+            top_p=0.95,
+            typical_p=0.95,
+            temperature=0.01,
+            repetition_penalty=1.03,
+            huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+        )
 
-            progress_stage += 20
-            progress_bar.progress(progress_stage)
-            st.info("Step 3: Loading the language model... 🚀")
+        progress["stage"] += 20
+        st.session_state.progress_bar.progress(progress["stage"])
 
-            llm = HuggingFaceEndpoint(
-                repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                max_new_tokens=2048,
-                top_k=10,
-                top_p=0.95,
-                typical_p=0.95,
-                temperature=0.01,
-                repetition_penalty=1.03,
-                huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-            )
-
-            progress_stage += 20
-            progress_bar.progress(progress_stage)
-            st.info("Step 4: Converting C++ to Java Spring Boot... 🔄")
-
-            prompt = f"""
+        progress["message"] = "Converting C++ to Java Spring Boot..."
+        prompt = f"""
 Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers.
 Only generate a separate `Controller`, `Service`, and `Repository` if the C++ code includes logic for handling HTTP requests, database interactions, or business logic. If the code is simple (e.g., "Hello World"), convert it within a single `MainApplication` class.
 
@@ -71,64 +68,40 @@ Here is the C++ code snippet:
 
 {cpp_code}
 """
-            response = llm.invoke(prompt)
+        response = llm.invoke(prompt)
 
-            progress_stage += 20
-            progress_bar.progress(progress_stage)
-            st.success("Step 5: Conversion complete! 🎉")
+        progress["stage"] += 20
+        st.session_state.progress_bar.progress(progress["stage"])
 
-            # Parsing response to identify components
-            components = {}
-            lines = response.splitlines()
-            current_class = None
-            
-            for line in lines:
-                if line.startswith("public class ") or line.startswith("class "):
-                    current_class = line.split()[2].strip()  # Extract class name
-                    components[current_class] = []
-                if current_class:
-                    components[current_class].append(line)
+        components = {}
+        lines = response.splitlines()
+        current_class = None
+        
+        for line in lines:
+            if line.startswith("public class ") or line.startswith("class "):
+                current_class = line.split()[2].strip()
+                components[current_class] = []
+            if current_class:
+                components[current_class].append(line)
 
-            # Create downloadable files for each component
+        zip_buffer = io.BytesIO()
+        zip_filename = filename.rsplit('.', 1)[0] + '.zip'
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
             for class_name, class_lines in components.items():
                 class_code = "\n".join(class_lines)
-                st.download_button(
-                    label=f"Download {class_name}.java",
-                    data=class_code,
-                    file_name=f"{class_name}.java",
-                    mime="text/x-java-source"
-                )
+                zip_file.writestr(f"{class_name}.java", class_code)
 
-            # Create a zip file in memory
-            zip_buffer = io.BytesIO()
-            zip_filename = filename.rsplit('.', 1)[0] + '.zip'  # Use the uploaded filename for the zip
-            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-                for class_name, class_lines in components.items():
-                    class_code = "\n".join(class_lines)
-                    # Save the class code to the zip file with correct naming
-                    zip_file.writestr(f"{class_name}.java", class_code)
+        zip_buffer.seek(0)
 
-            zip_buffer.seek(0)  # Move to the beginning of the BytesIO buffer
-
-            # Download button for the zip file
-            st.download_button(
-                label="Download All Classes as Zip",
-                data=zip_buffer,
-                file_name=zip_filename,
-                mime="application/zip"
-            )
-
-            # Display the converted Java code
-            st.code(response, language='java')
-
-            if re.search(r'\berror\b|\bexception\b|\bsyntax\b|\bmissing\b', response.lower()):
-                st.warning("The converted Java code may contain syntax or structural errors. Please review it carefully.")
-            else:
-                st.success("The Java code is free from basic syntax errors!")
+        return response, components, zip_buffer, zip_filename
 
     except Exception as e:
         logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
-        st.error("Unable to convert C++ code to Java.")
+        return None, None, None, None
+
+# Asynchronous wrapper
+def run_conversion(cpp_code, filename, token):
+    return convert_cpp_to_java_spring_boot(cpp_code, filename, token)
 
 # Page 1: File Upload Converter
 if page == "File Upload Converter":
@@ -147,19 +120,33 @@ if page == "File Upload Converter":
                     logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
                     st.warning("Unable to display code preview.")
 
-    with st.expander("Tutorials & Tips", expanded=True):
-        st.write("""### Welcome to the C++ to Java Conversion Tool!
-        Here are some tips to help you use this tool effectively:
-        - **Code Formatting:** Ensure your C++ code is properly formatted.
-        - **Chunking:** Break large files into smaller parts.
-        - **Annotations:** Ensure the Java conversion includes necessary annotations like `@RestController`.
-        - **Testing:** Test the Java code after conversion.
-        - **Documentation:** Familiarize with C++ and Java Spring Boot docs.
-        """)
-
     if file is not None:
         if st.button("Convert C++ to Java Spring Boot"):
-            convert_cpp_to_java_spring_boot(code_content, file.name, HUGGINGFACE_API_TOKEN)
+            st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+            with st.spinner("Processing..."):
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_conversion, code_content, file.name, HUGGINGFACE_API_TOKEN)
+                    response, components, zip_buffer, zip_filename = future.result()
+
+            if response:
+                st.code(response, language='java')
+                for class_name, class_lines in components.items():
+                    class_code = "\n".join(class_lines)
+                    st.download_button(
+                        label=f"Download {class_name}.java",
+                        data=class_code,
+                        file_name=f"{class_name}.java",
+                        mime="text/x-java-source"
+                    )
+
+                st.download_button(
+                    label="Download All Classes as Zip",
+                    data=zip_buffer,
+                    file_name=zip_filename,
+                    mime="application/zip"
+                )
+            else:
+                st.error("Conversion failed. Please try again.")
 
 # Page 2: Inline Code Converter
 if page == "Inline Code Converter":
@@ -168,4 +155,28 @@ if page == "Inline Code Converter":
     cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
     
     if cpp_code_input and st.button("Convert to Java"):
-        convert_cpp_to_java_spring_boot(cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
+        st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+        with st.spinner("Processing..."):
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(run_conversion, cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
+                response, components, zip_buffer, zip_filename = future.result()
+
+        if response:
+            st.code(response, language='java')
+            for class_name, class_lines in components.items():
+                class_code = "\n".join(class_lines)
+                st.download_button(
+                    label=f"Download {class_name}.java",
+                    data=class_code,
+                    file_name=f"{class_name}.java",
+                    mime="text/x-java-source"
+                )
+
+            st.download_button(
+                label="Download All Classes as Zip",
+                data=zip_buffer,
+                file_name=zip_filename,
+                mime="application/zip"
+            )
+        else:
+            st.error("Conversion failed. Please try again.")
