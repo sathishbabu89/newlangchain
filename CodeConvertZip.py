@@ -24,7 +24,7 @@ st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 
 page = st.sidebar.selectbox("Choose Page", ["File Upload Converter", "Inline Code Converter"])
 
-def convert_cpp_to_java_spring_boot(cpp_code, HUGGINGFACE_API_TOKEN):
+def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
     try:
         progress_bar = st.progress(0)
         progress_stage = 0
@@ -101,6 +101,7 @@ Here is the C++ code snippet:
 
             # Create a zip file in memory
             zip_buffer = io.BytesIO()
+            zip_filename = filename.rsplit('.', 1)[0] + '.zip'  # Use the uploaded filename for the zip
             with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
                 for class_name, class_lines in components.items():
                     class_code = "\n".join(class_lines)
@@ -113,7 +114,7 @@ Here is the C++ code snippet:
             st.download_button(
                 label="Download All Classes as Zip",
                 data=zip_buffer,
-                file_name="converted_java_classes.zip",
+                file_name=zip_filename,
                 mime="application/zip"
             )
 
@@ -158,7 +159,7 @@ if page == "File Upload Converter":
 
     if file is not None:
         if st.button("Convert C++ to Java Spring Boot"):
-            convert_cpp_to_java_spring_boot(code_content, HUGGINGFACE_API_TOKEN)
+            convert_cpp_to_java_spring_boot(code_content, file.name, HUGGINGFACE_API_TOKEN)
 
 # Page 2: Inline Code Converter
 if page == "Inline Code Converter":
@@ -167,4 +168,4 @@ if page == "Inline Code Converter":
     cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
     
     if cpp_code_input and st.button("Convert to Java"):
-        convert_cpp_to_java_spring_boot(cpp_code_input, HUGGINGFACE_API_TOKEN)
+        convert_cpp_to_java_spring_boot(cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
