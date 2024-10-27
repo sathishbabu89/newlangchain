@@ -217,4 +217,24 @@ if page == "File Upload Converter":
 if page == "Inline Code Converter":
     st.header("Inline C++ to Java Code Converter 💻")
 
-    cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300
+    cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
+
+    if st.button("Convert Inline C++ to Java Spring Boot"):
+        if cpp_code_input.strip():
+            project_info = {
+                'type': 'maven-project',
+                'groupId': group_id,
+                'artifactId': artifact_id,
+                'name': name,
+                'packageName': group_id,
+                'version': '0.0.1-SNAPSHOT',
+                'packaging': packaging,
+                'dependencies': ','.join(dependencies)
+            }
+            convert_cpp_to_java_spring_boot(cpp_code_input, "inline_code_conversion.cpp", HUGGINGFACE_API_TOKEN, project_info)
+        else:
+            st.warning("Please enter some C++ code to convert.")
+
+# Footer
+st.sidebar.markdown("### About")
+st.sidebar.write("This tool uses state-of-the-art AI models to assist with C++ to Java conversion, specifically tailored for Spring Boot applications.")
