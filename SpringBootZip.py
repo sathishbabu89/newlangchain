@@ -102,24 +102,18 @@ Here is the C++ code snippet:
             spring_boot_project = generate_spring_boot_project(project_info)
             
             if spring_boot_project:
+                # Create a zip buffer for the final download
                 zip_buffer = io.BytesIO()
                 zip_filename = filename.rsplit('.', 1)[0] + '.zip'
                 with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-                    # Save each converted Java class to the zip file
+                    # Save each converted Java class to the zip file with the correct package structure
+                    package_path = project_info['packageName'].replace('.', '/')
                     for class_name, class_lines in components.items():
                         class_code = "\n".join(class_lines)
-                        zip_file.writestr(f"src/main/java/{class_name}.java", class_code)
-                        
-                        # Individual download for each class
-                        st.download_button(
-                            label=f"Download {class_name}.java",
-                            data=class_code,
-                            file_name=f"{class_name}.java",
-                            mime="text/x-java-source"
-                        )
+                        zip_file.writestr(f"src/main/java/{package_path}/{class_name}.java", class_code)
 
-                    # Add Spring Boot project zip content
-                    zip_file.writestr("spring-boot-project.zip", spring_boot_project)
+                # Add Spring Boot project zip content
+                zip_file.writestr("spring-boot-project.zip", spring_boot_project)
 
                 zip_buffer.seek(0)  # Move to the beginning of the BytesIO buffer
 
@@ -130,6 +124,16 @@ Here is the C++ code snippet:
                     file_name=zip_filename,
                     mime="application/zip"
                 )
+
+                # Provide individual downloads for each class
+                for class_name, class_lines in components.items():
+                    class_code = "\n".join(class_lines)
+                    st.download_button(
+                        label=f"Download {class_name}.java",
+                        data=class_code,
+                        file_name=f"{class_name}.java",
+                        mime="text/x-java-source"
+                    )
             else:
                 st.error("Failed to generate the Spring Boot project.")
 
@@ -155,7 +159,9 @@ if page == "File Upload Converter":
         artifact_id = st.text_input("Artifact ID", "demo")
         name = st.text_input("Project Name", "Demo Project")
         packaging = st.selectbox("Packaging", ["jar", "war"])
-        dependencies = st.multiselect("Select Dependencies", ["web", "data-jpa", "mysql", "h2", "thymeleaf"])
+        java_version = st.selectbox("Java Version", ["11", "17", "21"])
+        spring_boot_version = st.selectbox("Spring Boot Version", ["2.5.0", "2.6.0", "2.7.0", "3.0.0", "3.1.0"])
+        dependencies = st.multiselect("Select Dependencies", ["web", "data-jpa", "mysql", "h2", "thymeleaf", "lombok", "spring-security"])
         
         with st.expander("Upload Your C++ Code", expanded=True):
             file = st.file_uploader("Upload a C++ file (.cpp) to start analyzing", type="cpp")
@@ -189,6 +195,8 @@ if page == "File Upload Converter":
                 'packageName': group_id,
                 'version': '0.0.1-SNAPSHOT',
                 'packaging': packaging,
+                'javaVersion': java_version,
+                'bootVersion': spring_boot_version,
                 'dependencies': ','.join(dependencies)
             }
             convert_cpp_to_java_spring_boot(code_content, file.name, HUGGINGFACE_API_TOKEN, project_info)
@@ -208,6 +216,8 @@ if page == "Inline Code Converter":
             'packageName': "com.example",
             'version': '0.0.1-SNAPSHOT',
             'packaging': 'jar',
+            'javaVersion': '11',
+            'bootVersion': '2.5.0',
             'dependencies': 'web'
         }
         convert_cpp_to_java_spring_boot(cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN, project_info)
