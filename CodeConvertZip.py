@@ -4,7 +4,7 @@ import re
 import torch
 import zipfile
 import io
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -26,7 +26,6 @@ st.set_page_config(page_title="C++ to Java Conversion Tool", page_icon="💻")
 page = st.sidebar.selectbox("Choose Page", ["File Upload Converter", "Inline Code Converter"])
 
 def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
-    # This function will run in a separate thread
     progress = {"stage": 0, "message": "Starting conversion..."}
 
     try:
@@ -35,14 +34,12 @@ def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
         chunks = text_splitter.split_text(cpp_code)
 
         progress["stage"] += 20
-        st.session_state.progress_bar.progress(progress["stage"])
 
         progress["message"] = "Generating embeddings..."
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vector_store = FAISS.from_texts(chunks, embeddings)
 
         progress["stage"] += 20
-        st.session_state.progress_bar.progress(progress["stage"])
 
         progress["message"] = "Loading the language model..."
         llm = HuggingFaceEndpoint(
@@ -57,7 +54,6 @@ def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN):
         )
 
         progress["stage"] += 20
-        st.session_state.progress_bar.progress(progress["stage"])
 
         progress["message"] = "Converting C++ to Java Spring Boot..."
         prompt = f"""
@@ -71,7 +67,6 @@ Here is the C++ code snippet:
         response = llm.invoke(prompt)
 
         progress["stage"] += 20
-        st.session_state.progress_bar.progress(progress["stage"])
 
         components = {}
         lines = response.splitlines()
@@ -99,7 +94,6 @@ Here is the C++ code snippet:
         logger.error(f"An error occurred while converting the code: {e}", exc_info=True)
         return None, None, None, None
 
-# Asynchronous wrapper
 def run_conversion(cpp_code, filename, token):
     return convert_cpp_to_java_spring_boot(cpp_code, filename, token)
 
@@ -120,9 +114,20 @@ if page == "File Upload Converter":
                     logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
                     st.warning("Unable to display code preview.")
 
+    with st.expander("Tutorials & Tips", expanded=True):
+        st.write("""### Welcome to the C++ to Java Conversion Tool!
+        Here are some tips to help you use this tool effectively:
+        - **Code Formatting:** Ensure your C++ code is properly formatted.
+        - **Chunking:** Break large files into smaller parts.
+        - **Annotations:** Ensure the Java conversion includes necessary annotations like `@RestController`.
+        - **Testing:** Test the Java code after conversion.
+        - **Documentation:** Familiarize with C++ and Java Spring Boot docs.
+        """)
+
     if file is not None:
         if st.button("Convert C++ to Java Spring Boot"):
-            st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+            if "progress_bar" not in st.session_state:
+                st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
             with st.spinner("Processing..."):
                 with ThreadPoolExecutor() as executor:
                     future = executor.submit(run_conversion, code_content, file.name, HUGGINGFACE_API_TOKEN)
@@ -155,7 +160,8 @@ if page == "Inline Code Converter":
     cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
     
     if cpp_code_input and st.button("Convert to Java"):
-        st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
+        if "progress_bar" not in st.session_state:
+            st.session_state.progress_bar = st.progress(0)  # Initialize progress bar
         with st.spinner("Processing..."):
             with ThreadPoolExecutor() as executor:
                 future = executor.submit(run_conversion, cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN)
