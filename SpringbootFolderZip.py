@@ -83,7 +83,7 @@ Here is the C++ code snippet:
 
             progress_stage += 20
             progress_bar.progress(progress_stage)
-            st.success("Step 5: Conversion complete! 🎉")
+            st.info("Step 5: Conversion complete! 🎉")
 
             # Parsing response to identify components
             components = {}
@@ -94,11 +94,16 @@ Here is the C++ code snippet:
                 if line.startswith("public class ") or line.startswith("class "):
                     current_class = line.split()[2].strip()  # Extract class name
                     components[current_class] = []
+
+                    # Check if this class should be annotated as an entity
+                    if "Model" in current_class or "Entity" in current_class:
+                        components[current_class].append("import javax.persistence.Entity;")
+                        components[current_class].append("@Entity")  # Adding the entity annotation
                 if current_class:
                     components[current_class].append(line)
 
             # Step 6: Generate Spring Boot project
-            st.info("Step 6: Generating Spring Boot project... 📦")
+            st.success("Step 6: Generating Spring Boot project... 📦")
             spring_boot_project = generate_spring_boot_project(project_info)
             
             if spring_boot_project:
@@ -110,6 +115,7 @@ Here is the C++ code snippet:
 
                     for class_name, class_lines in components.items():
                         class_code = "\n".join(class_lines)
+
                         # Determine the class type based on naming conventions
                         if "Controller" in class_name:
                             class_path = f"src/main/java/{package_path}/controller/{class_name}.java"
@@ -117,11 +123,13 @@ Here is the C++ code snippet:
                             class_path = f"src/main/java/{package_path}/service/{class_name}.java"
                         elif "Repository" in class_name:
                             class_path = f"src/main/java/{package_path}/repository/{class_name}.java"
+                        elif "Model" in class_name or "Entity" in class_name:
+                            class_path = f"src/main/java/{package_path}/entity/{class_name}.java"  # Save entity classes in a separate folder
                         else:
                             class_path = f"src/main/java/{package_path}/{class_name}.java"
 
                         zip_file.writestr(class_path, class_code)
-                        
+
                         # Individual download for each class
                         st.download_button(
                             label=f"Download {class_name}.java",
@@ -209,17 +217,4 @@ if page == "File Upload Converter":
 if page == "Inline Code Converter":
     st.header("Inline C++ to Java Code Converter 💻")
 
-    cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300)
-
-    if cpp_code_input and st.button("Convert to Java"):        
-        project_info = {
-            'type': 'maven-project',
-            'groupId': "com.example",
-            'artifactId': "demo",
-            'name': "Demo Project",
-            'packageName': "com.example",
-            'version': '0.0.1-SNAPSHOT',
-            'packaging': 'jar',
-            'dependencies': 'web'
-        }
-        convert_cpp_to_java_spring_boot(cpp_code_input, "converted_code.zip", HUGGINGFACE_API_TOKEN, project_info)
+    cpp_code_input = st.text_area("Enter C++ Code to Convert to Java Spring Boot", height=300
