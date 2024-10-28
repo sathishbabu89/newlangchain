@@ -76,6 +76,14 @@ def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN, p
             prompt = f"""
 Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers.
 Only generate a separate `Controller`, `Service`, and `Repository` if the C++ code includes logic for handling HTTP requests, database interactions, or business logic. If the code is simple (e.g., "Hello World"), convert it within a single `MainApplication` class.
+
+Ensure to:
+1. Conditionally create classes for each layer(e.g., 'Controller', 'Service', ' Entity', 'Repository' ) based on the complexity of c++ code.
+2. Include 'application.yaml' and 'pom.xml' with only the required dependencies
+3. Annotate each class appropriately (e.g., '@SpringBootApplication' , '@RestController' , '@Service' , '@Entity' ,'@Repository', etc.)
+4. Avoid generating duplicate codes; ensure each logic appears only once
+5. Generate distinct downloadable files for each of the following: Controller, Service, Repository, Entity, the main SpringBoot application class which has main method, pom.xml with needed dependencies and application.yaml file if applicable
+6. Instead of single java file i need multiple files for each service, controller, repository, entity, pom.xml, application.yaml
 Here is the C++ code snippet:
 {cpp_code}
 """
