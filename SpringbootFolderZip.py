@@ -124,17 +124,17 @@ Here is the C++ code snippet:
                     for class_name, class_lines in components.items():
                         class_code = "\n".join(class_lines)
 
-                        # Determine the class type based on naming conventions
+                         # Determine the class type based on naming conventions
                         if "Controller" in class_name:
-                            class_path = f"src/main/java/{package_path}/controller/{class_name}.java"
+                            class_path = f"{class_name}.java"  # Place directly in the project root
                         elif "Service" in class_name:
-                            class_path = f"src/main/java/{package_path}/service/{class_name}.java"
+                            class_path = f"{class_name}.java"  # Place directly in the project root
                         elif "Repository" in class_name:
-                            class_path = f"src/main/java/{package_path}/repository/{class_name}.java"
+                            class_path = f"{class_name}.java"  # Place directly in the project root
                         elif "Model" in class_name or "Entity" in class_name:
-                            class_path = f"src/main/java/{package_path}/entity/{class_name}.java"  # Save entity classes in a separate folder
+                            class_path = f"{class_name}.java"  # Place directly in the project root
                         else:
-                            class_path = f"src/main/java/{package_path}/{class_name}.java"
+                            class_path = f"{class_name}.java"  # Default case
 
                         zip_file.writestr(class_path, class_code)
 
