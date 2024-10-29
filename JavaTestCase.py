@@ -101,6 +101,10 @@ with st.sidebar:
 
                         st.success("Test classes generated successfully!")
 
+        except Exception as e:
+            logger.error(f"An error occurred while reading the ZIP file: {e}", exc_info=True)
+            st.warning("Unable to process the ZIP file.")
+
 # Display generated test classes in the main area
 if st.session_state.generated_tests:
     st.subheader("Generated Test Classes")
