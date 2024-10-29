@@ -36,7 +36,10 @@ def generate_test_class_with_llm(java_code):
     - Include test cases for all public methods.
     - Identify and mock all dependencies used in the class, including services, repositories, DTOs, and any other classes.
     - Cover edge cases and typical scenarios to ensure robust testing.
-    - Follow best practices for unit testing in Java with Mockito.
+    - Include tests for private methods using reflection if necessary.
+    - Ensure that all exception handling paths are tested.
+    - Follow best practices for unit testing in Java with Mockito, including naming conventions and structure.
+    - Provide comments to explain the purpose of each test and the testing strategy employed.
     """
 
     response = llm.invoke(prompt)
