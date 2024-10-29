@@ -6,17 +6,43 @@ import tempfile
 import re
 from langchain.llms import HuggingFaceEndpoint
 
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Streamlit app configuration
 st.set_page_config(page_title="Java Test Class Generator with LLM", page_icon="💻")
 st.header("Java Test Class Generator with LLM and Mockito 💻")
 
+# Your Hugging Face API token
 HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
 
 if 'generated_tests' not in st.session_state:
     st.session_state.generated_tests = {}
 
+# Function to create a test class using LLM
+def generate_test_class_with_llm(java_code):
+    llm = HuggingFaceEndpoint(
+        repo_id="mistralai/Mistral-Nemo-Instruct-2407",  # Replace with your model ID
+        huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+    )
+
+    prompt = f"""
+    Generate a JUnit test class using Mockito for the following Java class:
+    
+    {java_code}
+    
+    The test class should:
+    - Include test cases for all public methods.
+    - Identify and mock all dependencies used in the class, including services, repositories, DTOs, and any other classes.
+    - Cover edge cases and typical scenarios to ensure robust testing.
+    - Follow best practices for unit testing in Java with Mockito.
+    """
+
+    response = llm.invoke(prompt)
+    return response
+
+# File upload in the sidebar
 with st.sidebar:
     st.title("Upload Your Java Class Directory")
     uploaded_zip = st.file_uploader("Upload a ZIP file containing Java classes", type="zip")
@@ -91,28 +117,6 @@ with st.sidebar:
         except Exception as e:
             logger.error(f"An error occurred while reading the ZIP file: {e}", exc_info=True)
             st.warning("Unable to process the ZIP file.")
-
-# Function to create a test class using LLM
-def generate_test_class_with_llm(java_code):
-    llm = HuggingFaceEndpoint(
-        repo_id="mistralai/Mistral-Nemo-Instruct-2407",  # Replace with your model ID
-        huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-    )
-
-    prompt = f"""
-    Generate a JUnit test class using Mockito for the following Java class:
-    
-    {java_code}
-    
-    The test class should:
-    - Include test cases for all public methods.
-    - Identify and mock all dependencies used in the class, including services, repositories, DTOs, and any other classes.
-    - Cover edge cases and typical scenarios to ensure robust testing.
-    - Follow best practices for unit testing in Java with Mockito.
-    """
-
-    response = llm.invoke(prompt)
-    return response
 
 # If no file is uploaded
 if uploaded_zip is None:
