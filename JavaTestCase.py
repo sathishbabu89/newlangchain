@@ -42,7 +42,7 @@ def generate_test_class_with_llm(java_code):
     response = llm.invoke(prompt)
     return response
 
-# File upload in the sidebar
+# Sidebar for file upload
 with st.sidebar:
     st.title("Upload Your Java Class Directory")
     uploaded_zip = st.file_uploader("Upload a ZIP file containing Java classes", type="zip")
@@ -101,22 +101,19 @@ with st.sidebar:
 
                         st.success("Test classes generated successfully!")
 
-                        # Display generated test classes
-                        st.subheader("Generated Test Classes")
-                        for class_name, test_class_code in st.session_state.generated_tests.items():
-                            st.code(test_class_code, language='java')
+# Display generated test classes in the main area
+if st.session_state.generated_tests:
+    st.subheader("Generated Test Classes")
+    for class_name, test_class_code in st.session_state.generated_tests.items():
+        st.code(test_class_code, language='java')
 
-                            # Add download option for the generated test class
-                            st.download_button(
-                                label=f"Download {class_name}Test.java",
-                                data=test_class_code,
-                                file_name=f"{class_name}Test.java",  # Name of the file to download
-                                mime="text/java"
-                            )
-
-        except Exception as e:
-            logger.error(f"An error occurred while reading the ZIP file: {e}", exc_info=True)
-            st.warning("Unable to process the ZIP file.")
+        # Add download option for the generated test class
+        st.download_button(
+            label=f"Download {class_name}Test.java",
+            data=test_class_code,
+            file_name=f"{class_name}Test.java",  # Name of the file to download
+            mime="text/java"
+        )
 
 # If no file is uploaded
 if uploaded_zip is None:
