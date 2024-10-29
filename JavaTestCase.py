@@ -28,11 +28,14 @@ with st.sidebar:
                 with zipfile.ZipFile(directory, 'r') as zip_ref:
                     zip_ref.extractall(tmpdir)
 
-                java_files = []
+                logger.info("Files extracted to temporary directory.")
+                extracted_files = []
                 for root, _, files in os.walk(tmpdir):
                     for file in files:
-                        if file.endswith(".java"):
-                            java_files.append(os.path.join(root, file))
+                        extracted_files.append(os.path.join(root, file))
+                        logger.info(f"Extracted: {os.path.join(root, file)}")  # Log the extracted file paths
+
+                java_files = [file for file in extracted_files if file.endswith(".java")]
 
                 if java_files:
                     st.subheader("Java Classes Found:")
@@ -74,17 +77,26 @@ if directory is not None and java_files:
 
                 # Iterate through each Java file and generate test classes
                 for java_file in java_files:
-                    with open(java_file, 'r', encoding='utf-8') as f:
-                        java_content = f.read()
+                    logger.info(f"Attempting to open file: {java_file}")  # Log the file being processed
+                    try:
+                        with open(java_file, 'r', encoding='utf-8') as f:
+                            java_content = f.read()
 
-                    # Generate the test class using LLM
-                    test_class_code = generate_test_class_with_llm(java_content)
-                    class_name_pattern = r'class\s+(\w+)'
-                    class_name_match = re.search(class_name_pattern, java_content)
+                        # Generate the test class using LLM
+                        test_class_code = generate_test_class_with_llm(java_content)
+                        class_name_pattern = r'class\s+(\w+)'
+                        class_name_match = re.search(class_name_pattern, java_content)
 
-                    if class_name_match:
-                        class_name = class_name_match.group(1)
-                        st.session_state.generated_tests[class_name] = test_class_code
+                        if class_name_match:
+                            class_name = class_name_match.group(1)
+                            st.session_state.generated_tests[class_name] = test_class_code
+
+                    except FileNotFoundError:
+                        logger.error(f"File not found: {java_file}")  # Log if the file is not found
+                        st.error(f"File not found: {java_file}")
+                    except Exception as e:
+                        logger.error(f"An error occurred while processing the file: {e}", exc_info=True)
+                        st.error(f"An error occurred while processing the file: {java_file}. Error: {e}")
 
                 st.success("Test classes generated successfully!")
 
