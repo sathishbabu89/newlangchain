@@ -63,14 +63,14 @@ def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN, p
 
             prompt = f"""
 Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers.
-Only generate a separate `Controller`, `Service`, and `Repository` if the C++ code includes logic for handling HTTP requests, database interactions, or business logic. If the code is simple (e.g., "Hello World"), convert it within a single `MainApplication` class.
+Ensure that you generate only one `MainApplication` class with a single `main` method, and if the C++ code requires it, create distinct classes for `Controller`, `Service`, and `Repository`.
 
 Ensure to:
 1. Conditionally create classes for each layer (e.g., 'Controller', 'Service', 'Entity', 'Repository') based on the complexity of C++ code.
 2. Annotate each class appropriately (e.g., '@SpringBootApplication', '@RestController', '@Service', '@Entity', '@Repository', etc.)
 3. Avoid generating duplicate codes; ensure each logic appears only once.
+4. Generate only one `MainApplication` class, ensuring it contains the entry point for the Spring Boot application.
 Here is the C++ code snippet:
-{cpp_code}
 """
             response = llm.invoke(prompt)
 
