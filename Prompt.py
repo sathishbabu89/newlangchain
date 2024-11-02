@@ -1,38 +1,13 @@
-Convert the following C++ code into a Java Spring Boot application. Please follow these guidelines carefully to ensure accurate and well-structured conversion:
+Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers. Only generate a separate Controller, Service, and Repository if the C++ code includes logic for handling HTTP requests, database interactions, or business logic. If the code is simple (e.g., "Hello World"), convert it within a single MainApplication class.
 
-1. **Class Structure**: 
-   - Analyze the C++ code to determine the necessary components. 
-   - Create a `Controller`, `Service`, and `Repository` only if the code involves:
-     - Handling HTTP requests (create a `Controller`)
-     - Implementing business logic (create a `Service`)
-     - Interacting with a database (create a `Repository`)
-   - For simple C++ programs (e.g., "Hello World"), produce a single `MainApplication` class.
-
-2. **Class Annotations**: Ensure each class is correctly annotated:
-   - Use `@SpringBootApplication` for the main application class.
-   - Use `@RestController` for the controller class.
-   - Use `@Service` for service classes.
-   - Use `@Entity` for entity classes.
-   - Use `@Repository` for repository classes.
-
-3. **Avoid Duplication**: 
-   - Check that there is no duplicate code across files. Each logical component must be represented only once in the generated Java code.
-
-4. **File Structure**: 
-   - Generate distinct files for:
-     - `Controller` (if applicable)
-     - `Service` (if applicable)
-     - `Repository` (if applicable)
-     - `Entity` (if applicable)
-     - The main Spring Boot application class with the `main` method
-     - `pom.xml` with all required dependencies
-     - `application.yaml` if applicable
-
-5. **Output Clarity**: 
-   - The generated code should be clear, organized, and properly formatted, making it easy to read and integrate into a Spring Boot application.
-
-6. **Error Handling**: 
-   - If any part of the generated code does not meet the above criteria, please indicate what is missing or incorrect, and ensure all parts are logically connected.
+Ensure to:
+1. Conditionally create classes for each layer (e.g., 'Controller', 'Service', 'Entity', 'Repository') based on the complexity of the C++ code.
+2. Include 'application.yaml' and 'pom.xml' with only the required dependencies.
+3. Annotate each class appropriately (e.g., '@SpringBootApplication' for the main class, '@RestController' for controllers, '@Service' for services, '@Entity' for entities, and '@Repository' for repositories).
+4. Ensure that each class is annotated as specified, with no omissions.
+5. Avoid generating duplicate code; ensure each logic appears only once.
+6. Generate distinct downloadable files for each of the following: Controller, Service, Repository, Entity, the main Spring Boot application class (which contains the public static void main method), pom.xml with needed dependencies, and application.yaml file if applicable.
+7. Ensure that there is only one main class in the conversion which has the public static void main method.
 
 Here is the C++ code snippet:
 {cpp_code}
