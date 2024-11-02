@@ -61,16 +61,17 @@ def convert_cpp_to_java_spring_boot(cpp_code, filename, HUGGINGFACE_API_TOKEN, p
             progress_bar.progress(progress_stage)
             st.info("Step 4: Converting C++ to Java Spring Boot... 🔄")
 
-            prompt = f"""
-Convert the following C++ code into Java Spring Boot. Generate separate classes only if needed by the logic of the C++ code, avoiding unnecessary layers.
-Ensure that you generate only one `MainApplication` class with a single `main` method, and if the C++ code requires it, create distinct classes for `Controller`, `Service`, and `Repository`.
+prompt = f"""
+Convert the following C++ code into Java Spring Boot. The conversion should follow these guidelines:
 
-Ensure to:
-1. Conditionally create classes for each layer (e.g., 'Controller', 'Service', 'Entity', 'Repository') based on the complexity of C++ code.
-2. Annotate each class appropriately (e.g., '@SpringBootApplication', '@RestController', '@Service', '@Entity', '@Repository', etc.)
-3. Avoid generating duplicate codes; ensure each logic appears only once.
-4. Generate only one `MainApplication` class, ensuring it contains the entry point for the Spring Boot application.
+1. Generate only one `MainApplication` class that contains the `public static void main(String[] args)` method for starting the Spring Boot application.
+2. Only create separate classes for `Controller`, `Service`, `Repository`, and `Entity` if the logic of the C++ code requires them. Avoid unnecessary layers or duplicate classes.
+3. Each class should be annotated appropriately (e.g., '@SpringBootApplication', '@RestController', '@Service', '@Entity', '@Repository').
+4. Make sure to generate only distinct classes with no duplicate definitions.
+5. Include the application configuration files such as `application.yaml` and `pom.xml` with only the required dependencies.
+
 Here is the C++ code snippet:
+{cpp_code}
 """
             response = llm.invoke(prompt)
 
