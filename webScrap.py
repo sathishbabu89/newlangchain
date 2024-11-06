@@ -1,128 +1,122 @@
+"""Document Assistant Tool"""
 import logging
 import streamlit as st
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.llms import HuggingFaceEndpoint
-
-# Force PyTorch to use CPU
-import torch
-device = torch.device("cpu")
+from PyPDF2 import PdfReader
+import pdfplumber
+from langchain.chains.question_answering import load_qa_chain
+from langchain.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
+HUGGINGFACE_API_TOKEN = ""
 
-st.set_page_config(page_title="Website Content Summarization Tool", page_icon="🌐")
-st.header("Website Content Summarization Tool 🌐")
+st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
+st.header("Document Assistant Tool 📚")
 
+if 'conversation_history' not in st.session_state:
+    st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
 with st.sidebar:
-    st.title("Enter Website URL")
-    url = st.text_input("Enter the website URL to start extracting content")
+    st.title("Upload Your Document")
+    file = st.file_uploader("Upload a PDF file to start chatting", type="pdf")
 
-    if url:
+    if file is not None:
         try:
-            # Initialize Chrome WebDriver with Selenium to scrape content
-            chrome_options = Options()
-            chrome_options.add_argument("--headless")  # Run headless mode (no browser window)
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-            
-            # Open the URL
-            driver.get(url)
-            time.sleep(5)  # Wait for JavaScript to render content (adjust timing as necessary)
-            
-            # Get all the paragraphs from the page (or any other tags you want)
-            paragraphs = driver.find_elements(By.TAG_NAME, 'p')
-            text_content = " ".join([para.text for para in paragraphs])
-
-            driver.quit()  # Close the browser
-
-            st.subheader("Website Content Preview")
-            st.text(text_content[:2000])  # Preview the first 2000 characters of content
-
+            with pdfplumber.open(file) as pdf:
+                st.subheader("PDF Preview")
+                for page_num, page in enumerate(pdf.pages):
+                    pdf_image = page.to_image()
+                    img = pdf_image.original
+                    st.image(img,
+                             caption=f"Page {
+                                 page_num + 1}", use_column_width=True
+                             )
         except Exception as e:
-            logger.error(f"An error occurred while fetching the website content: {e}", exc_info=True)
-            st.warning("Unable to extract content from the provided URL.")
+            logger.error(f"An error occurred while previewing the PDF: {e}")
+            st.warning("Unable to display PDF preview.")
 
-if url:
+if file is not None:
     if st.session_state.vector_store is None:
         try:
-            with st.spinner("Processing and summarizing website content..."):
+            with st.spinner("Processing document..."):
+                pdf_reader = PdfReader(file)
+                TEXT = ""
+                for page in pdf_reader.pages:
+                    TEXT += page.extract_text() or ""
 
-                # Function to clean and split the content
-                def extract_summary(content):
-                    # You can add more complex logic to analyze the content, such as identifying key sections
-                    summary = []
-                    # Example: A simple summary of the length of content
-                    summary.append(f"Content Length: {len(content)} characters")
-
-                    return summary
-
-                # Get basic content summary
-                content_summary = extract_summary(text_content)
-
-                if not content_summary:
-                    st.warning("No useful content extracted.")
+                if not TEXT.strip():
+                    st.warning("No text found in the uploaded PDF.")
                 else:
-                    # Use LLM to generate detailed content summary
                     text_splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=500,
-                        chunk_overlap=50
+                        separators="\n",
+                        chunk_size=1000,
+                        chunk_overlap=100,
+                        length_function=len
                     )
-                    chunks = text_splitter.split_text(text_content)
-
+                    chunks = text_splitter.split_text(TEXT)
                     embeddings = HuggingFaceEmbeddings(
-                        model_name="sentence-transformers/all-MiniLM-L6-v2", device=device
-                    )
-
-                    st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
-
-                    # Load the LLM for content summarization
-                    llm = HuggingFaceEndpoint(
-                        repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                        max_new_tokens=512,
-                        top_k=10,
-                        top_p=0.95,
-                        typical_p=0.95,
-                        temperature=0.01,
-                        repetition_penalty=1.03,
-                        huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-                    )
-
-                    # Combine structural and LLM-based logic analysis
-                    st.success("Website content processed successfully!")
-
-                    st.subheader("Website Content Summary")
-                    for section in content_summary:
-                        st.markdown(f"- {section}")
-
-                    st.subheader("Business Logic or Insights Summary")
-                    with st.spinner("Generating business logic summary..."):
-                        try:
-                            # Concatenate the content with an instruction for summarization
-                            prompt = f"Summarize the key insights and business logic from this website content:\n\n{text_content}"
-                            response = llm.invoke(prompt)
-
-                            # Assuming the response is a string, display it directly
-                            st.markdown(response)
-
-                        except Exception as e:
-                            logger.error(f"An error occurred while summarizing the website content: {e}", exc_info=True)
-                            st.error("Unable to generate summary.")
-
+                        model_name="sentence-transformers/all-MiniLM-L6-v2")
+                    st.session_state.vector_store = FAISS.from_texts(
+                        chunks, embeddings)
+                    st.success("Document processed successfully!")
         except Exception as e:
-            logger.error(f"An error occurred while processing the website content: {e}", exc_info=True)
+            logger.error(
+                f"An error occurred while processing the document: {e}")
             st.error(str(e))
 
+    for message in st.session_state.conversation_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    user_question = st.chat_input("Type your question here")
+
+    if user_question:
+        if len(user_question.strip()) == 0:
+            st.warning("Please enter a question.")
+        else:
+            st.session_state.conversation_history.append(
+                {"role": "user", "content": user_question})
+            with st.chat_message("user"):
+                st.markdown(user_question)
+
+            if st.session_state.vector_store is not None:
+                with st.spinner("Thinking..."):
+                    try:
+                        retriever = st.session_state.vector_store.similarity_search(
+                            user_question)
+                        if not retriever:
+                            st.warning("No relevant information found.")
+                        else:
+                            llm = HuggingFaceEndpoint(
+                                repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                                max_new_tokens=512,
+                                top_k=10,
+                                top_p=0.95,
+                                typical_p=0.95,
+                                temperature=0.01,
+                                repetition_penalty=1.03,
+                                huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+                            )
+                            chain = load_qa_chain(llm, chain_type="stuff")
+                            response = chain.invoke(
+                                {"input_documents": retriever, "question": user_question})
+                            answer = response['output_text'].split(
+                                "Helpful Answer:")[-1].strip()
+                            st.session_state.conversation_history.append(
+                                {"role": "assistant", "content": answer})
+                            with st.chat_message("assistant"):
+                                st.markdown(answer)
+                    except Exception as e:
+                        logger.error(
+                            f"An error occurred while processing the question: {e}")
+                        st.error(str(e))
+            else:
+                st.warning(
+                    "Please wait for the document to finish processing before asking questions.")
 else:
-    st.info("Please enter a website URL to start extracting content.")
+    st.info("Please upload a PDF document to start chatting.")
