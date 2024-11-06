@@ -4,3 +4,5 @@ faiss-cpu
 huggingface-hub
 sentence-transformers
 torch==2.0.0+cpu
+
+pip install selenium webdriver-manager
