@@ -1,6 +1,9 @@
 import logging
 import streamlit as st
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
 import pdfplumber
@@ -8,8 +11,6 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
-# For rendering JavaScript-based sites
-from playwright.sync_api import sync_playwright
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +24,21 @@ if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
+
+# Function to fetch dynamic content using Selenium
+def fetch_dynamic_website_content(url):
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_service = Service("/path/to/chromedriver")  # Update with your driver path
+        browser = webdriver.Chrome(service=chrome_service, options=chrome_options)
+        browser.get(url)
+        page_content = browser.page_source
+        browser.quit()
+        return page_content
+    except Exception as e:
+        logger.error(f"An error occurred while fetching the website: {e}")
+        return None
 
 with st.sidebar:
     st.title("Input Source")
@@ -49,15 +65,9 @@ with st.sidebar:
 
         if url:
             with st.spinner("Fetching website content..."):
-                try:
-                    with sync_playwright() as p:
-                        browser = p.chromium.launch()
-                        page = browser.new_page()
-                        page.goto(url)
-                        page_content = page.content()
-                        soup = BeautifulSoup(page_content, "html.parser")
-                        browser.close()
-                    
+                page_content = fetch_dynamic_website_content(url)
+                if page_content:
+                    soup = BeautifulSoup(page_content, "html.parser")
                     website_text = ' '.join([p.get_text() for p in soup.find_all("p")])
                     if not website_text.strip():
                         st.warning("No text found on the webpage.")
@@ -71,10 +81,34 @@ with st.sidebar:
                         )
                         st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
                         st.success("Website content processed successfully!")
-                except Exception as e:
-                    logger.error(f"An error occurred while fetching the website: {e}")
+                else:
                     st.error("Error fetching or processing the website content.")
 
+# Document processing for PDFs
+if (option == "Upload PDF" and file):
+    if st.session_state.vector_store is None:
+        try:
+            with st.spinner("Processing document..."):
+                pdf_reader = PdfReader(file)
+                TEXT = ""
+                for page in pdf_reader.pages:
+                    TEXT += page.extract_text() or ""
+
+                if not TEXT.strip():
+                    st.warning("No text found in the uploaded PDF.")
+                else:
+                    text_splitter = RecursiveCharacterTextSplitter(
+                        separators="\n", chunk_size=1000, chunk_overlap=100, length_function=len
+                    )
+                    chunks = text_splitter.split_text(TEXT)
+                    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+                    st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
+                    st.success("Document processed successfully!")
+        except Exception as e:
+            logger.error(f"An error occurred while processing the document: {e}")
+            st.error(str(e))
+
+# Chatbot interface for questions
 if (option == "Upload PDF" and file) or (option == "Enter Website URL" and url):
     for message in st.session_state.conversation_history:
         with st.chat_message(message["role"]):
