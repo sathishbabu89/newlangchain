@@ -6,3 +6,4 @@ sentence-transformers
 torch==2.0.0+cpu
 
 pip install selenium webdriver-manager
+pip install selenium webdriver-manager beautifulsoup4 requests langchain
