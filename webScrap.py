@@ -1,78 +1,104 @@
-"""Document Assistant Tool"""
 import logging
 import streamlit as st
-from PyPDF2 import PdfReader
-import pdfplumber
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
+from langchain.text_splitters import RecursiveCharacterTextSplitter
+from langchain.huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = ""
+HUGGINGFACE_API_TOKEN = ""  # Add your HuggingFace API token here
 
-st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
-st.header("Document Assistant Tool 📚")
+st.set_page_config(page_title="Website Content Assistant Tool", page_icon="🌐")
+st.header("Website Content Assistant Tool 🌐")
 
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
+# Initialize WebDriver
+def initialize_driver():
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')  # Run in headless mode (no browser UI)
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-gpu')  # Disable GPU acceleration for headless mode
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    return driver
+
 with st.sidebar:
-    st.title("Upload Your Document")
-    file = st.file_uploader("Upload a PDF file to start chatting", type="pdf")
+    st.title("Enter Website URL")
+    url = st.text_input("Enter the URL of the website", "")
 
-    if file is not None:
+    if url:
         try:
-            with pdfplumber.open(file) as pdf:
-                st.subheader("PDF Preview")
-                for page_num, page in enumerate(pdf.pages):
-                    pdf_image = page.to_image()
-                    img = pdf_image.original
-                    st.image(img,
-                             caption=f"Page {
-                                 page_num + 1}", use_column_width=True
-                             )
-        except Exception as e:
-            logger.error(f"An error occurred while previewing the PDF: {e}")
-            st.warning("Unable to display PDF preview.")
+            # Initialize the WebDriver
+            driver = initialize_driver()
 
-if file is not None:
+            # Open the URL in the WebDriver
+            driver.get(url)
+
+            # Wait for the page to load (you can adjust the time based on the website)
+            time.sleep(3)  # Wait 3 seconds for the page to load (you can customize this)
+
+            # Get the page source after JavaScript has rendered the content
+            page_source = driver.page_source
+
+            # Close the driver after getting the content
+            driver.quit()
+
+            # Parse the HTML content using BeautifulSoup
+            soup = BeautifulSoup(page_source, 'html.parser')
+
+            # Extract text from the website, removing unnecessary tags like <script>, <style>, etc.
+            website_text = ' '.join([p.get_text() for p in soup.find_all('p')])
+
+            # Display a preview of the website content (first 1500 characters)
+            st.subheader("Website Content Preview")
+            st.write(website_text[:1500] + "...")
+
+        except Exception as e:
+            logger.error(f"An error occurred while fetching or parsing the website: {e}")
+            st.error("Error fetching or parsing the website content.")
+
+if url and website_text:
     if st.session_state.vector_store is None:
         try:
-            with st.spinner("Processing document..."):
-                pdf_reader = PdfReader(file)
-                TEXT = ""
-                for page in pdf_reader.pages:
-                    TEXT += page.extract_text() or ""
+            with st.spinner("Processing website content..."):
+                # Split the text into chunks
+                text_splitter = RecursiveCharacterTextSplitter(
+                    separators="\n",
+                    chunk_size=1000,
+                    chunk_overlap=100,
+                    length_function=len
+                )
+                chunks = text_splitter.split_text(website_text)
 
-                if not TEXT.strip():
-                    st.warning("No text found in the uploaded PDF.")
-                else:
-                    text_splitter = RecursiveCharacterTextSplitter(
-                        separators="\n",
-                        chunk_size=1000,
-                        chunk_overlap=100,
-                        length_function=len
-                    )
-                    chunks = text_splitter.split_text(TEXT)
-                    embeddings = HuggingFaceEmbeddings(
-                        model_name="sentence-transformers/all-MiniLM-L6-v2")
-                    st.session_state.vector_store = FAISS.from_texts(
-                        chunks, embeddings)
-                    st.success("Document processed successfully!")
+                # Create embeddings using HuggingFace
+                embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
+                st.session_state.vector_store = FAISS.from_texts(chunks, embeddings)
+
+                st.success("Website content processed successfully!")
         except Exception as e:
-            logger.error(
-                f"An error occurred while processing the document: {e}")
-            st.error(str(e))
+            logger.error(f"An error occurred while processing the website: {e}")
+            st.error("Error processing the website content.")
 
+    # Display conversation history
     for message in st.session_state.conversation_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    # User input for question
     user_question = st.chat_input("Type your question here")
 
     if user_question:
@@ -80,18 +106,20 @@ if file is not None:
             st.warning("Please enter a question.")
         else:
             st.session_state.conversation_history.append(
-                {"role": "user", "content": user_question})
+                {"role": "user", "content": user_question}
+            )
             with st.chat_message("user"):
                 st.markdown(user_question)
 
             if st.session_state.vector_store is not None:
                 with st.spinner("Thinking..."):
                     try:
-                        retriever = st.session_state.vector_store.similarity_search(
-                            user_question)
+                        # Search for relevant chunks from the vector store
+                        retriever = st.session_state.vector_store.similarity_search(user_question)
                         if not retriever:
                             st.warning("No relevant information found.")
                         else:
+                            # Use a HuggingFace model for the QA chain
                             llm = HuggingFaceEndpoint(
                                 repo_id="mistralai/Mistral-Nemo-Instruct-2407",
                                 max_new_tokens=512,
@@ -104,19 +132,20 @@ if file is not None:
                             )
                             chain = load_qa_chain(llm, chain_type="stuff")
                             response = chain.invoke(
-                                {"input_documents": retriever, "question": user_question})
-                            answer = response['output_text'].split(
-                                "Helpful Answer:")[-1].strip()
+                                {"input_documents": retriever, "question": user_question}
+                            )
+                            answer = response['output_text'].split("Helpful Answer:")[-1].strip()
+
+                            # Display the answer
                             st.session_state.conversation_history.append(
-                                {"role": "assistant", "content": answer})
+                                {"role": "assistant", "content": answer}
+                            )
                             with st.chat_message("assistant"):
                                 st.markdown(answer)
                     except Exception as e:
-                        logger.error(
-                            f"An error occurred while processing the question: {e}")
+                        logger.error(f"An error occurred while processing the question: {e}")
                         st.error(str(e))
             else:
-                st.warning(
-                    "Please wait for the document to finish processing before asking questions.")
+                st.warning("Please wait for the website content to finish processing before asking questions.")
 else:
-    st.info("Please upload a PDF document to start chatting.")
+    st.info("Please enter a URL to start chatting.")
