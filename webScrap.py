@@ -1,10 +1,7 @@
+import requests
+from bs4 import BeautifulSoup
 import logging
 import streamlit as st
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
 import pdfplumber
 from langchain.chains.question_answering import load_qa_chain
@@ -25,17 +22,12 @@ if 'conversation_history' not in st.session_state:
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
 
-# Function to fetch dynamic content using Selenium
-def fetch_dynamic_website_content(url):
+# Function to fetch website content using requests
+def fetch_website_content(url):
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_service = Service("/path/to/chromedriver")  # Update with your driver path
-        browser = webdriver.Chrome(service=chrome_service, options=chrome_options)
-        browser.get(url)
-        page_content = browser.page_source
-        browser.quit()
-        return page_content
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.text
     except Exception as e:
         logger.error(f"An error occurred while fetching the website: {e}")
         return None
@@ -61,11 +53,11 @@ with st.sidebar:
                 st.warning("Unable to display PDF preview.")
 
     elif option == "Enter Website URL":
-        url = st.text_input("Enter a website URL (e.g., https://www.lloydsbank.com/)")
+        url = st.text_input("Enter a website URL (e.g., https://www.example.com/)")
 
         if url:
             with st.spinner("Fetching website content..."):
-                page_content = fetch_dynamic_website_content(url)
+                page_content = fetch_website_content(url)
                 if page_content:
                     soup = BeautifulSoup(page_content, "html.parser")
                     website_text = ' '.join([p.get_text() for p in soup.find_all("p")])
