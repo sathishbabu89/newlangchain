@@ -6,8 +6,8 @@ from PIL import Image
 import io
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain.text_splitters import RecursiveCharacterTextSplitter
-from langchain.huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,19 +79,14 @@ def chat_with_ai(user_question, vector_store):
         logger.error(f"An error occurred while processing the question: {e}")
         return str(e)
 
-def handle_pdf_upload(files):
-    outputs = []
-    previews = []
+def handle_pdf_upload(file):
+    # Clear previous state
+    global vector_store
+    vector_store = None
+
+    status, preview = process_pdf(file)
     
-    for file in files:
-        status, preview = process_pdf(file)
-        outputs.append(status)
-        if preview:
-            previews.append(preview)
-        else:
-            previews.append(None)
-    
-    return outputs, previews
+    return status, preview
 
 def handle_user_query(user_question):
     global vector_store
@@ -212,10 +207,10 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         with gr.Column():
-            file_input = gr.Files(label="Upload PDFs", file_types=[".pdf"], multiple=True)
+            file_input = gr.File(label="Upload PDF", file_types=[".pdf"])  # Single file upload
             output_pdf = gr.Textbox(label="PDF Processing Output", lines=2)
-            pdf_previews = gr.Gallery(label="PDF Previews", elem_id="pdf_previews", show_label=False).style(grid=3)
-            file_input.change(fn=handle_pdf_upload, inputs=file_input, outputs=[output_pdf, pdf_previews])
+            pdf_preview = gr.Image(label="PDF Preview", show_label=False)
+            file_input.change(fn=handle_pdf_upload, inputs=file_input, outputs=[output_pdf, pdf_preview])
 
         with gr.Column():
             conversation_output = gr.Chatbot(label="Conversation History", elem_id="chatbox")
