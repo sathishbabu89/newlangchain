@@ -78,8 +78,13 @@ def handle_user_query(user_question):
     
     if vector_store is None:
         return "Please upload and process a document before asking questions."
+
+    answer = chat_with_ai(user_question, vector_store)
+
+    conversation_history.append(('user', user_question))
+    conversation_history.append(('assistant', answer))
     
-    return chat_with_ai(user_question, vector_store)
+    return conversation_history
 
 # Gradio Interface
 with gr.Blocks() as demo:
@@ -134,7 +139,7 @@ with gr.Blocks() as demo:
             border: none;
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,)
     
     gr.Markdown("<h1 style='color:white;'>Document Assistant Tool 📚</h1>")
 
