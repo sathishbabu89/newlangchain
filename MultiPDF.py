@@ -70,109 +70,48 @@ if uploaded_files:
             logger.error(f"Error processing documents: {e}")
             st.error(str(e))
 
-    # Layout split: PDF Preview on the left, Chat UI on the right
-    col1, col2 = st.columns([1, 2])  # Adjust the ratio as per preference
-    
-    # Column 1: PDF Preview
-    with col1:
-        if uploaded_files:
-            if selected_file:
-                for file in uploaded_files:
-                    if file.name == selected_file:
-                        try:
-                            with pdfplumber.open(file) as pdf:
-                                st.subheader(f"PDF Preview for {file.name}")
-                                for page_num, page in enumerate(pdf.pages):
-                                    pdf_image = page.to_image()
-                                    img = pdf_image.original
-                                    st.image(img, caption=f"Page {page_num + 1}", use_column_width=True)
-                        except Exception as e:
-                            logger.error(f"Error previewing {file.name}: {e}")
-                            st.warning(f"Unable to display preview for {file.name}.")
+    # Display conversation history
+    for message in st.session_state.conversation_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    # Column 2: Chat UI
-    with col2:
-        for message in st.session_state.conversation_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    user_question = st.chat_input("Ask your question")
 
-        user_question = st.chat_input("Ask your question")
+    if user_question:
+        if len(user_question.strip()) == 0:
+            st.warning("Please enter a question.")
+        else:
+            st.session_state.conversation_history.append({"role": "user", "content": user_question})
+            with st.chat_message("user"):
+                st.markdown(user_question)
 
-        if user_question:
-            if len(user_question.strip()) == 0:
-                st.warning("Please enter a question.")
+            if st.session_state.vector_store is not None:
+                with st.spinner("Thinking..."):
+                    try:
+                        retriever = st.session_state.vector_store.similarity_search(user_question)
+                        if not retriever:
+                            st.warning("No relevant information found.")
+                        else:
+                            llm = HuggingFaceEndpoint(
+                                repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                                max_new_tokens=512,
+                                top_k=10,
+                                top_p=0.95,
+                                typical_p=0.95,
+                                temperature=0.01,
+                                repetition_penalty=1.03,
+                                huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
+                            )
+                            chain = load_qa_chain(llm, chain_type="stuff")
+                            response = chain.invoke({"input_documents": retriever, "question": user_question})
+                            answer = response['output_text'].split("Helpful Answer:")[-1].strip()
+                            st.session_state.conversation_history.append({"role": "assistant", "content": answer})
+                            with st.chat_message("assistant"):
+                                st.markdown(answer)
+                    except Exception as e:
+                        logger.error(f"Error during question processing: {e}")
+                        st.error(str(e))
             else:
-                st.session_state.conversation_history.append({"role": "user", "content": user_question})
-                with st.chat_message("user"):
-                    st.markdown(user_question)
-
-                if st.session_state.vector_store is not None:
-                    with st.spinner("Thinking..."):
-                        try:
-                            retriever = st.session_state.vector_store.similarity_search(user_question)
-                            if not retriever:
-                                st.warning("No relevant information found.")
-                            else:
-                                llm = HuggingFaceEndpoint(
-                                    repo_id="mistralai/Mistral-Nemo-Instruct-2407",
-                                    max_new_tokens=512,
-                                    top_k=10,
-                                    top_p=0.95,
-                                    typical_p=0.95,
-                                    temperature=0.01,
-                                    repetition_penalty=1.03,
-                                    huggingfacehub_api_token=HUGGINGFACE_API_TOKEN
-                                )
-                                chain = load_qa_chain(llm, chain_type="stuff")
-                                response = chain.invoke({"input_documents": retriever, "question": user_question})
-                                answer = response['output_text'].split("Helpful Answer:")[-1].strip()
-                                st.session_state.conversation_history.append({"role": "assistant", "content": answer})
-                                with st.chat_message("assistant"):
-                                    st.markdown(answer)
-                        except Exception as e:
-                            logger.error(f"Error during question processing: {e}")
-                            st.error(str(e))
-                else:
-                    st.warning("Please wait for documents to finish processing.")
+                st.warning("Please wait for documents to finish processing.")
 else:
     st.info("Upload one or more PDF documents to begin chatting.")
-
-
-# Floating Chatbox CSS (Popup-style Chat)
-st.markdown("""
-    <style>
-        .stChat {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 300px;
-            height: 400px;
-            border: 1px solid #ccc;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            padding: 10px;
-            z-index: 9999;
-        }
-        .stChatHeader {
-            background-color: #0078D4;
-            color: white;
-            padding: 5px;
-            border-radius: 8px 8px 0 0;
-            text-align: center;
-        }
-        .stChatBody {
-            height: 300px;
-            overflow-y: scroll;
-            padding: 10px;
-        }
-        .stChatFooter {
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
