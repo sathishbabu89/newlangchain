@@ -25,17 +25,22 @@ with st.sidebar:
     uploaded_files = st.file_uploader("Upload PDF files to start chatting", type="pdf", accept_multiple_files=True)
 
     if uploaded_files:
-        st.subheader("PDF Preview")
+        # Create a dropdown for file selection
+        selected_file = st.selectbox("Select a PDF file to preview", [file.name for file in uploaded_files])
+
+        # Display preview of the selected file
         for file in uploaded_files:
-            try:
-                with pdfplumber.open(file) as pdf:
-                    for page_num, page in enumerate(pdf.pages):
-                        pdf_image = page.to_image()
-                        img = pdf_image.original
-                        st.image(img, caption=f"Page {page_num + 1} from {file.name}", use_column_width=True)
-            except Exception as e:
-                logger.error(f"Error previewing {file.name}: {e}")
-                st.warning(f"Unable to display preview for {file.name}.")
+            if file.name == selected_file:
+                try:
+                    with pdfplumber.open(file) as pdf:
+                        st.subheader(f"PDF Preview for {file.name}")
+                        for page_num, page in enumerate(pdf.pages):
+                            pdf_image = page.to_image()
+                            img = pdf_image.original
+                            st.image(img, caption=f"Page {page_num + 1}", use_column_width=True)
+                except Exception as e:
+                    logger.error(f"Error previewing {file.name}: {e}")
+                    st.warning(f"Unable to display preview for {file.name}.")
 
 if uploaded_files:
     if st.session_state.vector_store is None:
@@ -65,6 +70,7 @@ if uploaded_files:
             logger.error(f"Error processing documents: {e}")
             st.error(str(e))
 
+    # Display conversation history
     for message in st.session_state.conversation_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
