@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 import pdfplumber
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain.text_splitter import CharacterTextSplitter  # Fallback import
+from langchain.text_splitter import CharacterTextSplitter  # Use CharacterTextSplitter
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from streamlit_option_menu import option_menu  # Import the streamlit-option-menu
 
@@ -16,28 +16,30 @@ HUGGINGFACE_API_TOKEN = ""
 st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
 st.header("Document Assistant Tool 📚")
 
-# Initialize session state for conversation history and vector store
+# Initialize session state for conversation history and vector store if not already initialized
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
+if 'uploaded_files' not in st.session_state:
+    st.session_state.uploaded_files = []
 
 # Streamlit Option Menu in the Sidebar
 with st.sidebar:
     selected = option_menu("Main Menu", ["Upload Document", "Q&A", "Settings", "Help"],
                            icons=["cloud-upload", "question-circle", "gear", "life-ring"], menu_icon="cast",
                            default_index=0, orientation="vertical")
-    
-# Initialize uploaded_files variable globally
-uploaded_files = []
 
 # Conditional content based on the selected menu item
 if selected == "Upload Document":
     st.title("Upload Your Document")
     uploaded_files = st.file_uploader("Upload PDF files to start chatting", type="pdf", accept_multiple_files=True)
 
-    # File validation
+    # Store uploaded files in session state
     if uploaded_files:
+        st.session_state.uploaded_files = uploaded_files
+
+        # File validation
         for file in uploaded_files:
             if file.type != "application/pdf":
                 st.warning(f"File {file.name} is not a valid PDF. Please upload PDFs only.")
@@ -62,12 +64,13 @@ if selected == "Upload Document":
 
 elif selected == "Q&A":
     # Q&A Section
-    if uploaded_files:
+    if st.session_state.uploaded_files:
+        # Process files if vector_store is not yet created
         if st.session_state.vector_store is None:
             try:
                 with st.spinner("Processing documents..."):
                     all_text = ""
-                    for file in uploaded_files:
+                    for file in st.session_state.uploaded_files:
                         pdf_reader = PdfReader(file)
                         for page in pdf_reader.pages:
                             all_text += page.extract_text() or ""
@@ -75,7 +78,7 @@ elif selected == "Q&A":
                     if not all_text.strip():
                         st.warning("No text found in the uploaded PDFs.")
                     else:
-                        text_splitter = CharacterTextSplitter(  # Using fallback splitter
+                        text_splitter = CharacterTextSplitter(
                             separator="\n",
                             chunk_size=1000,
                             chunk_overlap=100,
