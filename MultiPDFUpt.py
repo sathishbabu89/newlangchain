@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 import pdfplumber
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain.chains.text_splitter import RecursiveCharacterTextSplitter  # Corrected import
+from langchain.text_splitter import CharacterTextSplitter  # Fallback import
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from streamlit_option_menu import option_menu  # Import the streamlit-option-menu
 
@@ -75,8 +75,8 @@ elif selected == "Q&A":
                     if not all_text.strip():
                         st.warning("No text found in the uploaded PDFs.")
                     else:
-                        text_splitter = RecursiveCharacterTextSplitter(
-                            separators="\n",
+                        text_splitter = CharacterTextSplitter(  # Using fallback splitter
+                            separator="\n",
                             chunk_size=1000,
                             chunk_overlap=100,
                             length_function=len
