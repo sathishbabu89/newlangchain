@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 import pdfplumber
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain.text_splitters import RecursiveCharacterTextSplitter
+from langchain.chains.text_splitter import RecursiveCharacterTextSplitter  # Corrected import
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from streamlit_option_menu import option_menu  # Import the streamlit-option-menu
 
