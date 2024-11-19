@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 import pdfplumber
 from langchain.chains.question_answering import load_qa_chain
 from langchain.vectorstores import FAISS
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from streamlit_option_menu import option_menu  # Import the streamlit-option-menu
 
@@ -16,6 +16,7 @@ HUGGINGFACE_API_TOKEN = ""
 st.set_page_config(page_title="Document Assistant Tool", page_icon="📚")
 st.header("Document Assistant Tool 📚")
 
+# Initialize session state for conversation history and vector store
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'vector_store' not in st.session_state:
@@ -27,6 +28,9 @@ with st.sidebar:
                            icons=["cloud-upload", "question-circle", "gear", "life-ring"], menu_icon="cast",
                            default_index=0, orientation="vertical")
     
+# Initialize uploaded_files variable globally
+uploaded_files = []
+
 # Conditional content based on the selected menu item
 if selected == "Upload Document":
     st.title("Upload Your Document")
