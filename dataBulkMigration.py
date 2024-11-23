@@ -4,19 +4,20 @@ import zipfile
 import os
 import shutil
 import torch
+import io
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.llms import HuggingFaceEndpoint
-import io
 
 # Force PyTorch to use CPU
 device = torch.device("cpu")
 
-logging.basicConfig(level=logging.INFO)
+# Setup logger for debugging
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token
+HUGGINGFACE_API_TOKEN = ""  # Add your Hugging Face API token here
 
 # Ensure the API token is provided before invoking the LLM
 if not HUGGINGFACE_API_TOKEN:
@@ -66,7 +67,7 @@ def convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN):
 
             # Load the LLM for code conversion
             llm = HuggingFaceEndpoint(
-                repo_id="meta-llama/Llama-3.2-11B-Vision-Instruct", 
+                repo_id="meta-llama/Llama-3.2-11B-Vision-Instruct",  # Using T5 instead of Mistral
                 max_new_tokens=2048,
                 top_k=10,
                 top_p=0.95,
@@ -116,18 +117,33 @@ Here is the PL/SQL code snippet:
 def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
     # Create a temporary directory to extract zip contents
     with zipfile.ZipFile(file, 'r') as zip_ref:
+        # List all files in the zip
+        file_list = zip_ref.namelist()
+        logger.info(f"Files in uploaded zip: {file_list}")
+        
         zip_ref.extractall("temp_plsql")
-
+    
     converted_files = []
     conversion_summary = []
 
     # Iterate through extracted files
-    for filename in os.listdir("temp_plsql"):
+    extracted_files = os.listdir("temp_plsql")
+    logger.info(f"Extracted files: {extracted_files}")
+    
+    for filename in extracted_files:
         if filename.endswith(".plsql"):
             plsql_file_path = os.path.join("temp_plsql", filename)
             try:
                 with open(plsql_file_path, 'r') as f:
                     plsql_code = f.read()
+                    logger.debug(f"Read {len(plsql_code)} characters from {filename}.")
+                    
+                    # If no content, log it
+                    if not plsql_code:
+                        logger.warning(f"File {filename} is empty!")
+                        st.warning(f"File {filename} is empty.")
+                        continue
+                    
                     st.info(f"Converting {filename}...")
 
                     # Convert the PL/SQL code to target DB type
@@ -138,6 +154,7 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
                         converted_files.append((filename.replace(".plsql", f"_{db_type}.sql"), converted_code))
                         conversion_summary.append(f"Converted {filename} to {db_type} SQL format.")
                     else:
+                        logger.warning(f"Conversion failed for {filename}. No converted code returned.")
                         st.warning(f"Conversion failed for {filename}.")
             
             except Exception as e:
@@ -146,6 +163,7 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
     
     # Check if we actually converted any files
     if not converted_files:
+        logger.warning("No files were converted.")
         st.warning("No files were converted. Please check your PL/SQL code.")
         return None, conversion_summary
 
@@ -207,8 +225,7 @@ if page == "File Upload Converter":
         if st.button(f"Convert to {selected_option}"):
             convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
 
-
-# Page 2: PL/SQL Project Converter
+# Page 2: PL/SQL Project Converter (New Page for ZIP Upload)
 if page == "PL/SQL Project Converter":
     st.header("PL/SQL Project to Database Conversion Tool 🚀")
 
