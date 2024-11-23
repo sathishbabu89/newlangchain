@@ -63,7 +63,7 @@ def convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN):
 
             # Load the LLM for code conversion
             llm = HuggingFaceEndpoint(
-                repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                repo_id="google/flan-t5-large",  # Using T5 instead of Mistral
                 max_new_tokens=2048,
                 top_k=10,
                 top_p=0.95,
