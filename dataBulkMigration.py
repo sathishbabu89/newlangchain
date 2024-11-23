@@ -2,10 +2,8 @@ import logging
 import streamlit as st
 import zipfile
 import os
-import shutil
 import torch
 import io
-import logging
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -33,6 +31,9 @@ page = st.sidebar.selectbox("Choose Page", ["File Upload Converter", "PL/SQL Pro
 def convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN):
     try:
         # Initialize the progress bar
+        st.progress(0)
+        
+        # Show a single progress bar for the entire conversion
         progress_bar = st.progress(0)
         progress_stage = 0
 
@@ -99,15 +100,6 @@ Here is the PL/SQL code snippet:
             progress_bar.progress(progress_stage)
             st.success("Step 5: Conversion complete! 🎉")
 
-            # Display the converted SQL code
-            st.code(response, language='sql')
-
-            # Basic error-checking logic
-            if re.search(r'\berror\b|\bexception\b|\bsyntax\b|\bmissing\b', response.lower()):
-                st.warning(f"The converted {db_type} SQL code may contain syntax or structural errors. Please review it carefully.")
-            else:
-                st.success(f"The {db_type} SQL code is free from basic syntax errors!")
-
             return response
         
     except Exception as e:
@@ -134,8 +126,13 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
             extracted_files.append(os.path.join(root, filename))
     logger.info(f"Extracted files (recursive): {extracted_files}")
     
+    # Show the global progress for all files
+    total_files = len(extracted_files)
+    progress_bar = st.progress(0)
+    progress_stage = 0
+    
     # Iterate through all the files found in the directories
-    for plsql_file_path in extracted_files:
+    for idx, plsql_file_path in enumerate(extracted_files):
         if plsql_file_path.endswith(".sql"):
             try:
                 with open(plsql_file_path, 'r') as f:
@@ -150,7 +147,6 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
                     
                     # Extract file name relative to the original directory
                     file_name = os.path.relpath(plsql_file_path, "temp_plsql")
-                    st.info(f"Converting {file_name}...")
 
                     # Convert the PL/SQL code to target DB type
                     converted_code = convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
@@ -167,6 +163,10 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
             except Exception as e:
                 logger.error(f"Failed to process {plsql_file_path}: {e}", exc_info=True)
                 st.error(f"Error processing {plsql_file_path}.")
+        
+        # Update the progress bar for each file processed
+        progress_stage = int((idx + 1) / total_files * 100)
+        progress_bar.progress(progress_stage)
     
     # Check if we actually converted any files
     if not converted_files:
@@ -183,55 +183,6 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
     output_zip.seek(0)  # Go to the beginning of the BytesIO object
     return output_zip, conversion_summary
 
-# Page 1: File Upload Converter (Existing Page)
-if page == "File Upload Converter":
-    st.header("PL/SQL to Database Conversion Tool 💻")
-
-    # Collapsible sidebar for uploading code and tutorials
-    with st.sidebar:
-        with st.expander("Upload Your PL/SQL Code", expanded=True):  # Expanded by default
-            file = st.file_uploader("Upload a PL/SQL file (.plsql) to start analyzing", type="plsql")
-
-            if file is not None:
-                try:
-                    plsql_code = file.read().decode("utf-8")
-                    st.subheader("PL/SQL Code Preview")
-                    st.code(plsql_code[:5000], language='sql')  # Display the PL/SQL code with proper syntax highlighting
-                except Exception as e:
-                    logger.error(f"An error occurred while reading the code file: {e}", exc_info=True)
-                    st.warning("Unable to display code preview.")
-
-    # Tutorials or Tips Section
-    with st.expander("Tutorials & Tips", expanded=True):
-        st.write(""" 
-        ### Welcome to the PL/SQL to Database Conversion Tool!
-        
-        Here are some tips to help you use this tool effectively:
-        - **Code Formatting:** Ensure your PL/SQL code is properly formatted.
-        - **Chunking:** Break large files into smaller parts.
-        - **Testing:** Test the converted code in the target database system.
-        - **Documentation:** Familiarize with PL/SQL and the target database SQL syntax (e.g., PostgreSQL, MySQL).
-        """)
-
-    # Database conversion options
-    conversion_options = [
-        "PL/SQL to PostgreSQL",
-        "PL/SQL to Google BigQuery",
-        "PL/SQL to MongoDB",
-        "PL/SQL to SQLite",
-        "PL/SQL to SQL Server (T-SQL)",
-        "PL/SQL to MySQL"
-    ]
-    
-    # Dropdown to select conversion target
-    selected_option = st.selectbox("Select the target database conversion format", conversion_options)
-
-    # Convert based on selection
-    if file is not None and selected_option:
-        db_type = selected_option.split(" ")[-1]  # Get the target database type (PostgreSQL, MySQL, etc.)
-        if st.button(f"Convert to {selected_option}"):
-            convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
-
 # Page 2: PL/SQL Project Converter (New Page for ZIP Upload)
 if page == "PL/SQL Project Converter":
     st.header("PL/SQL Project to Database Conversion Tool 🚀")
@@ -246,6 +197,8 @@ if page == "PL/SQL Project Converter":
         db_type = st.selectbox("Select the target database conversion format", conversion_options)
         
         if st.button(f"Convert to {db_type}"):
+
+            # Show a global progress bar for the entire conversion process
             with st.spinner(f"Converting PL/SQL project to {db_type}..."):
                 # Process the ZIP file
                 output_zip, conversion_summary = process_plsql_zip(uploaded_zip, db_type, HUGGINGFACE_API_TOKEN)
