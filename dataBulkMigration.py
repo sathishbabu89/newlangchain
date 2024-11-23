@@ -66,7 +66,7 @@ def convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN):
 
             # Load the LLM for code conversion
             llm = HuggingFaceEndpoint(
-                repo_id="google/flan-t5-large",  # Using T5 instead of Mistral
+                repo_id="meta-llama/Llama-3.2-11B-Vision-Instruct", 
                 max_new_tokens=2048,
                 top_k=10,
                 top_p=0.95,
@@ -125,12 +125,29 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
     for filename in os.listdir("temp_plsql"):
         if filename.endswith(".plsql"):
             plsql_file_path = os.path.join("temp_plsql", filename)
-            with open(plsql_file_path, 'r') as f:
-                plsql_code = f.read()
-                st.info(f"Converting {filename}...")
-                converted_code = convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
-                converted_files.append((filename.replace(".plsql", f"_{db_type}.sql"), converted_code))
-                conversion_summary.append(f"Converted {filename} to {db_type} SQL format.")
+            try:
+                with open(plsql_file_path, 'r') as f:
+                    plsql_code = f.read()
+                    st.info(f"Converting {filename}...")
+
+                    # Convert the PL/SQL code to target DB type
+                    converted_code = convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
+                    
+                    # Ensure conversion returned something
+                    if converted_code:
+                        converted_files.append((filename.replace(".plsql", f"_{db_type}.sql"), converted_code))
+                        conversion_summary.append(f"Converted {filename} to {db_type} SQL format.")
+                    else:
+                        st.warning(f"Conversion failed for {filename}.")
+            
+            except Exception as e:
+                logger.error(f"Failed to process {filename}: {e}", exc_info=True)
+                st.error(f"Error processing {filename}.")
+    
+    # Check if we actually converted any files
+    if not converted_files:
+        st.warning("No files were converted. Please check your PL/SQL code.")
+        return None, conversion_summary
 
     # Create a new zip file with the converted SQL files
     output_zip = io.BytesIO()
@@ -210,15 +227,18 @@ if page == "PL/SQL Project Converter":
                 output_zip, conversion_summary = process_plsql_zip(uploaded_zip, db_type, HUGGINGFACE_API_TOKEN)
 
                 # Provide download link for converted project
-                st.success("Conversion complete! 🎉")
-                st.download_button(
-                    label="Download Converted Project",
-                    data=output_zip,
-                    file_name=f"converted_plsql_project_{db_type}.zip",
-                    mime="application/zip"
-                )
+                if output_zip:
+                    st.success("Conversion complete! 🎉")
+                    st.download_button(
+                        label="Download Converted Project",
+                        data=output_zip,
+                        file_name=f"converted_plsql_project_{db_type}.zip",
+                        mime="application/zip"
+                    )
 
-                # Show conversion summary
-                st.subheader("Conversion Summary")
-                for summary in conversion_summary:
-                    st.write(summary)
+                    # Show conversion summary
+                    st.subheader("Conversion Summary")
+                    for summary in conversion_summary:
+                        st.write(summary)
+                else:
+                    st.warning("No files were converted. Please check the log above for details.")
