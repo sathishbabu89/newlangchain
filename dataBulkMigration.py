@@ -4,6 +4,8 @@ import zipfile
 import os
 import torch
 import io
+import re
+import logging
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
