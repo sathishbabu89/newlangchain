@@ -5,6 +5,7 @@ import os
 import shutil
 import torch
 import io
+import logging
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -126,40 +127,46 @@ def process_plsql_zip(file, db_type, HUGGINGFACE_API_TOKEN):
     converted_files = []
     conversion_summary = []
 
-    # Iterate through extracted files
-    extracted_files = os.listdir("temp_plsql")
-    logger.info(f"Extracted files: {extracted_files}")
+    # Iterate through extracted files recursively using os.walk
+    extracted_files = []
+    for root, dirs, files in os.walk("temp_plsql"):
+        for filename in files:
+            extracted_files.append(os.path.join(root, filename))
+    logger.info(f"Extracted files (recursive): {extracted_files}")
     
-    for filename in extracted_files:
-        if filename.endswith(".plsql"):
-            plsql_file_path = os.path.join("temp_plsql", filename)
+    # Iterate through all the files found in the directories
+    for plsql_file_path in extracted_files:
+        if plsql_file_path.endswith(".sql"):
             try:
                 with open(plsql_file_path, 'r') as f:
                     plsql_code = f.read()
-                    logger.debug(f"Read {len(plsql_code)} characters from {filename}.")
+                    logger.debug(f"Read {len(plsql_code)} characters from {plsql_file_path}.")
                     
                     # If no content, log it
                     if not plsql_code:
-                        logger.warning(f"File {filename} is empty!")
-                        st.warning(f"File {filename} is empty.")
+                        logger.warning(f"File {plsql_file_path} is empty!")
+                        st.warning(f"File {plsql_file_path} is empty.")
                         continue
                     
-                    st.info(f"Converting {filename}...")
+                    # Extract file name relative to the original directory
+                    file_name = os.path.relpath(plsql_file_path, "temp_plsql")
+                    st.info(f"Converting {file_name}...")
 
                     # Convert the PL/SQL code to target DB type
                     converted_code = convert_plsql_to_database(plsql_code, db_type, HUGGINGFACE_API_TOKEN)
                     
                     # Ensure conversion returned something
                     if converted_code:
-                        converted_files.append((filename.replace(".plsql", f"_{db_type}.sql"), converted_code))
-                        conversion_summary.append(f"Converted {filename} to {db_type} SQL format.")
+                        new_file_name = file_name.replace(".sql", f"_{db_type}.sql")
+                        converted_files.append((new_file_name, converted_code))
+                        conversion_summary.append(f"Converted {file_name} to {db_type} SQL format.")
                     else:
-                        logger.warning(f"Conversion failed for {filename}. No converted code returned.")
-                        st.warning(f"Conversion failed for {filename}.")
+                        logger.warning(f"Conversion failed for {plsql_file_path}. No converted code returned.")
+                        st.warning(f"Conversion failed for {file_name}.")
             
             except Exception as e:
-                logger.error(f"Failed to process {filename}: {e}", exc_info=True)
-                st.error(f"Error processing {filename}.")
+                logger.error(f"Failed to process {plsql_file_path}: {e}", exc_info=True)
+                st.error(f"Error processing {plsql_file_path}.")
     
     # Check if we actually converted any files
     if not converted_files:
