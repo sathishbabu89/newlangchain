@@ -93,7 +93,7 @@ if uploaded_files:
                             st.warning("No relevant information found.")
                         else:
                             llm = HuggingFaceEndpoint(
-                                repo_id="mistralai/Mistral-Nemo-Instruct-2407",
+                                repo_id="meta-llama/Llama-3.2-11B-Vision-Instruct",
                                 max_new_tokens=512,
                                 top_k=10,
                                 top_p=0.95,
